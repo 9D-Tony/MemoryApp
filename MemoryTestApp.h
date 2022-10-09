@@ -30,6 +30,7 @@ struct fileData
 
 struct memoryBlock
 {
+    Color color;
     fileData* data; // the data
     Rectangle rect; // rectangle that visually represents it
 };
@@ -86,6 +87,39 @@ internal void arena_align(memory_arena *arena, memory_index boundary)
 {
 	memory_index p =(arena->Used + (boundary - 1));
 	arena->Used = p - p % boundary;
+}
+
+internal Color GetRandomColor()
+{
+    uint32 randomNum = rand()/255;
+    uint32 randomNum1 = rand()/255;
+    uint32 randomNum2 = rand()/255;
+    
+    Color blockColor = {randomNum,randomNum1,randomNum2, 255};
+    return blockColor;
+}
+
+internal inline Rectangle SetMemoryBlockPos(Rectangle baseMemoryRect, memory_arena& programMemory, uint32 beforeUsedMemory)
+{
+    Rectangle Result = {};
+    //(NOTE): to get starting point we need to get memory_arena before allocation happened
+    //calculate position based on memory
+    // memory range 0 - 128MB
+    // memory rentangle range X - x + 950
+    //memory_arena.Used
+    //memory_arena.Size
+    real32 oldRange = (real32)programMemory.Size;
+    real32 newRange = (real32)(baseMemoryRect.width - baseMemoryRect.x);
+    Result.height = baseMemoryRect.height / 1.1;
+    
+    Result.y = baseMemoryRect.y + (baseMemoryRect.height / 16);
+    Result.x = beforeUsedMemory * newRange / oldRange + baseMemoryRect.x;
+    
+    Result.width = ((real32)programMemory.Used * newRange / oldRange + baseMemoryRect.x) - Result.x; 
+    
+    
+    
+    return Result;
 }
 
 internal fileData* LoadDataIntoMemory(memory_arena& programMemory, char* filename)

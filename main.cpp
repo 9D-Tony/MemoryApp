@@ -58,7 +58,7 @@
 #define Terabytes(Value) (Gigabytes(Value) * 1024)
 #define ArrayCount(a) (sizeof(a) / sizeof(*a))
 
-#define MAX_MEMORY Megabytes(128)
+#define MAX_MEMORY Megabytes(10)
 
 int main(void)
 {
@@ -81,16 +81,17 @@ int main(void)
     
     FilePathList droppedFiles = { 0 };
     
-    Rectangle memoryRect = {screenWidth / 2 - 500 ,screenHeight / 2,950,100};
+    Rectangle baseMemoryRect = {screenWidth / 2 - 500,screenHeight / 2,1000,100};
     Rectangle buttonRec  = {screenWidth / 2 - 60 ,screenHeight / 2 - 200,180,60};
     uint32 blocksAssigned = 0;
-    memoryBlock memoryBlocks[42] = {};
+    memoryBlock memoryBlocks[120] = {};
     Vector2 mousePoint = { 0.0f, 0.0f };
     
     memory_arena programMemory = {};
     fileData* tempFile = {};
     const char* textData = "Hello world!";
     
+    printf("Base memory rect X:%f, Y%f, width:%f, height:%f\n", baseMemoryRect.x, baseMemoryRect.y,baseMemoryRect.width,baseMemoryRect.height);
     // NOTE: allow user to dynamically allocate memory
     
     while (!WindowShouldClose()) 
@@ -114,14 +115,21 @@ int main(void)
                 for(int i = 0; i < droppedFiles.count; i++)
                 {
                     // load file into memory here create memory block rectangles
+                    uint32 beforeMemory = programMemory.Used;
                     fileData* filePtr = LoadDataIntoMemory(programMemory,droppedFiles.paths[i]);
                     // if we managed to  load the data
                     if(filePtr != NULL)
                     {
                         memoryBlocks[blocksAssigned].data = filePtr; 
+                        memoryBlocks[blocksAssigned].rect = SetMemoryBlockPos(baseMemoryRect,programMemory, beforeMemory);
+                        srand(programMemory.Used);
                         
+                        printf("rand seed: %d \n",programMemory.Used);
+                        memoryBlocks[blocksAssigned].color = GetRandomColor();
                         blocksAssigned++;
                         
+                        printf("programData size: %d\n", programMemory.Size);
+                        printf("programData total used: %d\n", programMemory.Used);
                     }
                     
                 }
@@ -134,14 +142,7 @@ int main(void)
             if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
             {
                 programData.hasMemAllocated = true;
-                AllocateBaseMemory(programData,&programMemory, Megabytes(128));
-                
-                tempFile = pushStruct(&programMemory,fileData);
-                tempFile->size = strlen(textData);
-                tempFile->type = TEXT;
-                
-                tempFile->baseData = pushArray(&programMemory,strlen(textData),uint8);
-                Copy(tempFile->baseData,strlen(textData),(uint8*)textData);
+                AllocateBaseMemory(programData,&programMemory, MAX_MEMORY);
                 
                 printf("programData size: %d\n", programMemory.Size);
                 printf("programData total used: %d\n", programMemory.Used);
@@ -159,11 +160,11 @@ int main(void)
             DrawText("Alloc memory",buttonRec.x  + (buttonRec.width / 20),buttonRec.y + (buttonRec.height / 4),25,WHITE);
         }else
         {
-            DrawRectangleRec(memoryRect,BLUE);
+            DrawRectangleRec(baseMemoryRect,BLUE);
             
             for(int i = 0; i < blocksAssigned; i++)
             {
-                DrawRectangleRec(memoryBlocks[i].rect,RED);
+                DrawRectangleRec(memoryBlocks[i].rect,memoryBlocks[i].color);
             }
         }
         
