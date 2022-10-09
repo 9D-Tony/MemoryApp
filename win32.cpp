@@ -21,8 +21,6 @@ typedef int64_t int64;
 typedef float real32;
 typedef double real64;
 
-#define Pi32 3.14159265359f
-
 // (TODO): change to better name
 struct fileInfo 
 {
@@ -52,7 +50,7 @@ internal void Win32VirtualFree(void* memoryPtr)
     }
 }
 
-internal fileInfo DebugWin32LoadFile(char* filename)
+internal fileInfo Win32LoadFile(char* filename)
 {
     //get file size
     fileInfo fileResult = {};

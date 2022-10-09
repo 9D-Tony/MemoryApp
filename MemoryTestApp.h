@@ -31,6 +31,7 @@ struct fileData
 struct memoryBlock
 {
     Color color;
+    char String[64];
     fileData* data; // the data
     Rectangle rect; // rectangle that visually represents it
 };
@@ -42,9 +43,9 @@ struct memory_arena
 	memory_index Used;
 };
 
-char supportedTxtFiles[] = { 'txt'};
-char supportedAudioFiles[] = { 'wav','mp3','ogg', 'flac'};
-char supportedImagefiles[] = { 'gif', 'png', 'jpg'};
+char supportedTxtFiles[5][8] = { ".txt", ".blah"};
+char supportedAudioFiles[5][8] = { ".wav",".mp3",".ogg", ".flac"};
+char supportedImageFiles[5][8] = { ".gif", ".png", ".jpg"};
 
 internal void AllocateBaseMemory(programState& data, memory_arena *arena, int32 memSize)
 {
@@ -117,9 +118,20 @@ internal inline Rectangle SetMemoryBlockPos(Rectangle baseMemoryRect, memory_are
     
     Result.width = ((real32)programMemory.Used * newRange / oldRange + baseMemoryRect.x) - Result.x; 
     
-    
-    
     return Result;
+}
+
+internal inline bool32 CheckIfExtension(char* extensionArray,uint32 arraySize,char* extension)
+{
+    for(int i=0; i < arraySize; i++)
+    {
+        if(strcmp(extensionArray + (i * 8), extension) == 0)
+        {
+            return true;
+        }
+    }
+    
+    return false;
 }
 
 internal fileData* LoadDataIntoMemory(memory_arena& programMemory, char* filename)
@@ -127,16 +139,20 @@ internal fileData* LoadDataIntoMemory(memory_arena& programMemory, char* filenam
     // NOTE: can strlen fail here?
     //fileData 
     fileData* fileResult = {};
-    fileInfo fileLoadResult = DebugWin32LoadFile(filename);
+    fileInfo fileLoadResult = Win32LoadFile(filename);
     
     //Error could not get file
-    if(fileLoadResult.data == NULL) return NULL;
-    int32 filenameLength = strlen(filename);
+    if(fileLoadResult.data == NULL || fileLoadResult.size > (programMemory.Size - programMemory.Used))
+    {
+        return NULL;
+    }
     
+    int32 filenameLength = strlen(filename);
     int32 foundChar = strcspn(filename, ".");
+    
     char extensionString[12]; // most extensions will be < 4
     
-    // get  memory for the file
+    // get memory for the file
     fileResult = pushStruct(&programMemory,fileData);
     fileResult->size = fileLoadResult.size;
     fileResult->baseData = pushArray(&programMemory,fileLoadResult.size,uint8);
@@ -145,14 +161,32 @@ internal fileData* LoadDataIntoMemory(memory_arena& programMemory, char* filenam
     //(TODO): search from the back of the string to get the extension.
     if(foundChar != filenameLength)
     {
-        // found the "."
         int32 extensionLength = filenameLength - foundChar;
         strcpy_s(extensionString, filename + foundChar);
         printf("extension is: %s \n",extensionString);
         
+        //(TODO): BLECH, what is this?!
         if(strcmp(extensionString, ".txt") == 0)
         {
             fileResult->type = TEXT;
+            printf("file is a text file with size: %d\n", fileLoadResult.size);
+            Copy(fileResult->baseData,fileLoadResult.size,(uint8*)fileLoadResult.data);
+            
+        }else if(CheckIfExtension((char*)supportedAudioFiles, ArrayCount(supportedAudioFiles), extensionString))
+        {
+            fileResult->type = AUDIO;
+            printf("file is a text file with size: %d\n", fileLoadResult.size);
+            Copy(fileResult->baseData,fileLoadResult.size,(uint8*)fileLoadResult.data);
+            
+        }else if(CheckIfExtension((char*)supportedImageFiles, ArrayCount(supportedAudioFiles), extensionString))
+        {
+            fileResult->type = IMAGE;
+            printf("file is a text file with size: %d\n", fileLoadResult.size);
+            Copy(fileResult->baseData,fileLoadResult.size,(uint8*)fileLoadResult.data);
+            
+        }else
+        {
+            fileResult->type = OTHER;
             printf("file is a text file with size: %d\n", fileLoadResult.size);
             Copy(fileResult->baseData,fileLoadResult.size,(uint8*)fileLoadResult.data);
         }
@@ -162,38 +196,17 @@ internal fileData* LoadDataIntoMemory(memory_arena& programMemory, char* filenam
     return(fileResult);
 }
 
-internal void setMemoryData(memory_arena& programMemory,int32 size, void* data,FILETYPE type)
+internal inline uint32 numDigits(const uint32 n) {
+    if (n < 10) return 1;
+    return 1 + numDigits(n / 10);
+}
+
+internal char* IntToChar(char* buffer, int32 input)
 {
-    //grab potion of memory and set it to a certain struct
-    //data.totalUsed = data.totalUsed + size;
-    
-    //find the type, load and copy data into memory
-    
-    fileData* tempFile = {};
-    tempFile = pushStruct(&programMemory,fileData);
-    
-    switch (type)
-    {
-        case TEXT:
-        uint8* stringData = (uint8*)data; 
-        
-        tempFile->size = size;
-        tempFile->type = TEXT;
-        
-        tempFile->baseData = pushArray(&programMemory,size,uint8);
-        Copy(tempFile->baseData,size,stringData);
-        
-        break;
-        
-        /*case AUDIO:
-        break;
-        
-        case IMAGE:
-        break;
-        
-        case OTHER:
-        break;*/
-    }
+    // sprintf is slow find better way
+    uint32 totalDigits = numDigits(input);
+    sprintf_s(buffer,totalDigits + 11, "%d Megabytes", input);
+    return buffer;
 }
 
 internal void ClearMemory(memory_arena *Arena, void *baseAddress,  memory_index size)

@@ -50,13 +50,16 @@
 #endif
 // else define C standard mmap and free for compiling on clang and GCC
 
-#include "MemoryTestApp.h"
-
 #define Kilobytes(Value) ((Value) * 1024)
 #define Megabytes(Value) (Kilobytes(Value) * 1024)
 #define Gigabytes(Value) (Megabytes(Value) * 1024)
 #define Terabytes(Value) (Gigabytes(Value) * 1024)
 #define ArrayCount(a) (sizeof(a) / sizeof(*a))
+
+#define ToKilobytes(Value) ((Value) / 1024)
+#define ToMegabytes(Value) (ToKilobytes(Value) / 1024)
+
+#include "MemoryTestApp.h"
 
 #define MAX_MEMORY Megabytes(10)
 
@@ -78,7 +81,6 @@ int main(void)
     InitWindow(screenWidth, screenHeight, "Memory Test");
     
     SetTargetFPS(programData.FPSTarget);
-    
     FilePathList droppedFiles = { 0 };
     
     Rectangle baseMemoryRect = {screenWidth / 2 - 500,screenHeight / 2,1000,100};
@@ -124,14 +126,12 @@ int main(void)
                         memoryBlocks[blocksAssigned].rect = SetMemoryBlockPos(baseMemoryRect,programMemory, beforeMemory);
                         srand(programMemory.Used);
                         
-                        printf("rand seed: %d \n",programMemory.Used);
                         memoryBlocks[blocksAssigned].color = GetRandomColor();
                         blocksAssigned++;
                         
                         printf("programData size: %d\n", programMemory.Size);
                         printf("programData total used: %d\n", programMemory.Used);
                     }
-                    
                 }
             }
         }
@@ -160,7 +160,14 @@ int main(void)
             DrawText("Alloc memory",buttonRec.x  + (buttonRec.width / 20),buttonRec.y + (buttonRec.height / 4),25,WHITE);
         }else
         {
+            
             DrawRectangleRec(baseMemoryRect,BLUE);
+            char textBuffer[16];
+            char* usedMemoryText = IntToChar(textBuffer,ToMegabytes(programMemory.Size));
+            
+            int32 textWidth = MeasureTextEx(GetFontDefault(), usedMemoryText, 20, 1).x;
+            
+            DrawText(usedMemoryText,baseMemoryRect.width / 2 + textWidth,baseMemoryRect.y - baseMemoryRect.height / 2,20,WHITE);
             
             for(int i = 0; i < blocksAssigned; i++)
             {
@@ -169,6 +176,7 @@ int main(void)
         }
         
         EndDrawing();
+        
     }
     
     CloseWindow();
