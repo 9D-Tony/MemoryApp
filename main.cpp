@@ -69,17 +69,19 @@ int main(void)
     const int screenWidth = 1280;
     const int screenHeight = 720;
     
-    SYSTEM_INFO sSysInfo; // system infomation
-    GetSystemInfo(&sSysInfo);
+    SYSTEM_INFO sysInfo; // system infomation
+    GetSystemInfo(&sysInfo);
     
     SetTraceLogLevel(LOG_NONE);
     
     programState programData = {};
+    
     programData.screenWidth = screenWidth;
     programData.screenHeight = screenHeight;
     programData.FPSTarget = 60; // 30 FPS is fine for now
     programData.hasMemAllocated = false;
     programData.sliderValue = 0;
+    programData. pageSize = sysInfo.dwPageSize;
     
     InitWindow(screenWidth, screenHeight, "Memory Test");
     
@@ -154,7 +156,7 @@ int main(void)
                 if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
                 {
                     programData.hasMemAllocated = true;
-                    AllocateBaseMemory(programData,&programMemory, MAX_MEMORY);
+                    AllocateBaseMemory(programData,&programMemory, programData.sliderValue);
                     
                     printf("programData size: %d\n", programMemory.Size);
                     printf("programData total used: %d\n", programMemory.Used);
@@ -195,11 +197,19 @@ int main(void)
             
             //(TODO): add slider value here and assign value to memory alloc
             // map from BarRect width to memory size values
-            programData.sliderValue = MapRange(sliderBarRect.x,sliderBarRect.x + sliderBarRect.width,0,MAX_MEMORY,sliderRect.x);
             
-            char textBuffer[16];
+            programData.sliderValue = ToPageSize(MapRange(sliderBarRect.x,sliderBarRect.x + sliderBarRect.width,0,MAX_MEMORY,sliderRect.x), programData.pageSize);
             
-            DrawText(IntToChar(textBuffer,ToMegabytes(programData.sliderValue)),sliderBarRect.x + (sliderBarRect.width / 2), sliderBarRect.y - 80, 30, WHITE);
+            char textBuffer[20];
+            
+            if(programData.sliderValue < Megabytes(1))
+            {
+                DrawText(IntToChar(textBuffer,ToKilobytes(programData.sliderValue), "Kilobytes"),sliderBarRect.x + (sliderBarRect.width / 2), sliderBarRect.y - 80, 30, WHITE);
+                
+            }else
+            {
+                DrawText(IntToChar(textBuffer, ToMegabytes(programData.sliderValue), "Megabytes"),sliderBarRect.x + (sliderBarRect.width / 2), sliderBarRect.y - 80, 30, WHITE);
+            }
             
             DrawRectangleRec(sliderBarRect,WHITE);
             DrawRectangleRec(sliderRect, BLUE);
@@ -209,9 +219,9 @@ int main(void)
             
             DrawRectangleRec(baseMemoryRect,BLUE);
             
-            char textBuffer[16];
+            char textBuffer[20];
             //(NOTE): cache text here.
-            char* usedMemoryText = IntToChar(textBuffer,ToMegabytes(programMemory.Size));
+            char* usedMemoryText = IntToChar(textBuffer, ToMegabytes(programMemory.Size), "Megabytes");
             int32 textWidth = MeasureTextEx(GetFontDefault(), usedMemoryText, 20, 1).x;
             
             DrawText(usedMemoryText,baseMemoryRect.width / 2 + textWidth,baseMemoryRect.y - baseMemoryRect.height / 2,20,WHITE);

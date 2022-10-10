@@ -6,6 +6,7 @@ struct programState {
     char windowName[64];
     int32 screenWidth;
     int32 screenHeight;
+    uint32 pageSize;
     uint32 size;
     uint32 totalUsed;
     uint32 sliderValue;
@@ -84,6 +85,12 @@ void* pushSize_(memory_arena *Arena, memory_index size) // the size can be a typ
 	void *Result = Arena->Base + Arena->Used;
 	Arena->Used += size;
 	return (Result);
+}
+
+internal inline uint32 ToPageSize(uint32 input, uint32 pageSize)
+{
+    uint32 remainder = input % pageSize;
+    return input - remainder;
 }
 
 internal void arena_align(memory_arena *arena, memory_index boundary)
@@ -204,11 +211,14 @@ internal inline uint32 numDigits(const uint32 n) {
     return 1 + numDigits(n / 10);
 }
 
-internal char* IntToChar(char* buffer, int32 input)
+internal char* IntToChar(char* buffer, int32 input,const char* extraString)
 {
     // sprintf is slow find better way
+    
     uint32 totalDigits = numDigits(input);
-    sprintf_s(buffer,totalDigits + 11, "%d Megabytes", input);
+    uint32 extraLength = strlen(extraString);
+    
+    sprintf_s(buffer,totalDigits + extraLength + 2, "%d %s", input, extraString);
     return buffer;
 }
 
