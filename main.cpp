@@ -55,6 +55,7 @@
 #define Gigabytes(Value) (Megabytes(Value) * 1024)
 #define Terabytes(Value) (Gigabytes(Value) * 1024)
 #define ArrayCount(a) (sizeof(a) / sizeof(*a))
+#define MapRange(oldMin,oldMax,newMin,newMax,value) (newMin + (value-oldMin)*(newMax-newMin)/(oldMax-oldMin))
 
 #define ToKilobytes(Value) ((Value) / 1024)
 #define ToMegabytes(Value) (ToKilobytes(Value) / 1024)
@@ -72,26 +73,34 @@ int main(void)
     GetSystemInfo(&sSysInfo);
     
     SetTraceLogLevel(LOG_NONE);
+    
     programState programData = {};
     programData.screenWidth = screenWidth;
     programData.screenHeight = screenHeight;
-    programData.FPSTarget = 30; // 30 FPS is fine for now
+    programData.FPSTarget = 60; // 30 FPS is fine for now
     programData.hasMemAllocated = false;
+    programData.sliderValue = 0;
     
     InitWindow(screenWidth, screenHeight, "Memory Test");
     
     SetTargetFPS(programData.FPSTarget);
     FilePathList droppedFiles = { 0 };
     
+    //Retangles
     Rectangle baseMemoryRect = {screenWidth / 2 - 500,screenHeight / 2,1000,100};
-    Rectangle buttonRec  = {screenWidth / 2 - 60 ,screenHeight / 2 - 200,180,60};
+    Rectangle allocateRect  = {screenWidth / 2 - 60 ,screenHeight / 2 - 180,180,60};
+    
+    Rectangle sliderBarRect = {screenWidth / 2 - 350 ,screenHeight / 2 - 250,800,20};
+    Rectangle sliderRect = {screenWidth / 2 - 320 ,sliderBarRect.y - 32,20,80};
+    
     uint32 blocksAssigned = 0;
     memoryBlock memoryBlocks[120] = {};
-    Vector2 mousePoint = { 0.0f, 0.0f };
+    Vector2 mousePos = { 0.0f, 0.0f };
     
     memory_arena programMemory = {};
     fileData* tempFile = {};
     const char* textData = "Hello world!";
+    bool32 isMouseHeldDown = false;
     
     printf("Base memory rect X:%f, Y%f, width:%f, height:%f\n", baseMemoryRect.x, baseMemoryRect.y,baseMemoryRect.width,baseMemoryRect.height);
     // NOTE: allow user to dynamically allocate memory
@@ -100,7 +109,7 @@ int main(void)
     {
         (!IsWindowFocused) ? SetTargetFPS(15) : SetTargetFPS(programData.FPSTarget);
         
-        mousePoint = GetMousePosition();
+        mousePos = GetMousePosition();
         
         if(IsFileDropped())
         {
@@ -136,16 +145,41 @@ int main(void)
             }
         }
         
-        //don't like this change later
-        if (CheckCollisionPointRec(mousePoint, buttonRec) && !programData.hasMemAllocated)
+        //(NOTE): don't like AllocateButton collision check change later
+        //Allocate rect collision
+        if(!programData.hasMemAllocated)
         {
-            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+            if (CheckCollisionPointRec(mousePos, allocateRect) && !programData.hasMemAllocated)
             {
-                programData.hasMemAllocated = true;
-                AllocateBaseMemory(programData,&programMemory, MAX_MEMORY);
+                if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+                {
+                    programData.hasMemAllocated = true;
+                    AllocateBaseMemory(programData,&programMemory, MAX_MEMORY);
+                    
+                    printf("programData size: %d\n", programMemory.Size);
+                    printf("programData total used: %d\n", programMemory.Used);
+                }
+            }
+            
+            if(CheckCollisionPointRec(mousePos, sliderRect))
+            {
+                if (IsMouseButtonDown(MOUSE_BUTTON_LEFT))
+                {
+                    isMouseHeldDown = true;
+                }
+            }
+            
+            if(isMouseHeldDown)
+            {
+                if(IsMouseButtonUp(MOUSE_BUTTON_LEFT))
+                {
+                    isMouseHeldDown = false;
+                }
                 
-                printf("programData size: %d\n", programMemory.Size);
-                printf("programData total used: %d\n", programMemory.Used);
+                sliderRect.x = mousePos.x - (sliderRect.width / 2);
+                if(sliderRect.x > (sliderBarRect.x + sliderBarRect.width)) sliderRect.x = (sliderBarRect.x + sliderBarRect.width) - 0.1f;
+                
+                if(sliderRect.x < sliderBarRect.x) sliderRect.x = sliderBarRect.x + 0.1f;
             }
         }
         
@@ -156,15 +190,28 @@ int main(void)
         
         if(!programData.hasMemAllocated)
         {
-            DrawRectangleRec(buttonRec ,RED);
-            DrawText("Alloc memory",buttonRec.x  + (buttonRec.width / 20),buttonRec.y + (buttonRec.height / 4),25,WHITE);
+            DrawRectangleRec(allocateRect ,RED);
+            DrawText("Alloc memory",allocateRect.x  + (allocateRect.width / 20),allocateRect.y + (allocateRect.height / 4),25, WHITE);
+            
+            //(TODO): add slider value here and assign value to memory alloc
+            // map from BarRect width to memory size values
+            programData.sliderValue = MapRange(sliderBarRect.x,sliderBarRect.x + sliderBarRect.width,0,MAX_MEMORY,sliderRect.x);
+            
+            char textBuffer[16];
+            
+            DrawText(IntToChar(textBuffer,ToMegabytes(programData.sliderValue)),sliderBarRect.x + (sliderBarRect.width / 2), sliderBarRect.y - 80, 30, WHITE);
+            
+            DrawRectangleRec(sliderBarRect,WHITE);
+            DrawRectangleRec(sliderRect, BLUE);
+            
         }else
         {
             
             DrawRectangleRec(baseMemoryRect,BLUE);
-            char textBuffer[16];
-            char* usedMemoryText = IntToChar(textBuffer,ToMegabytes(programMemory.Size));
             
+            char textBuffer[16];
+            //(NOTE): cache text here.
+            char* usedMemoryText = IntToChar(textBuffer,ToMegabytes(programMemory.Size));
             int32 textWidth = MeasureTextEx(GetFontDefault(), usedMemoryText, 20, 1).x;
             
             DrawText(usedMemoryText,baseMemoryRect.width / 2 + textWidth,baseMemoryRect.y - baseMemoryRect.height / 2,20,WHITE);
@@ -176,7 +223,6 @@ int main(void)
         }
         
         EndDrawing();
-        
     }
     
     CloseWindow();

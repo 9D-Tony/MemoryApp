@@ -6,10 +6,12 @@ struct programState {
     char windowName[64];
     int32 screenWidth;
     int32 screenHeight;
-    bool hasMemAllocated;
+    uint32 size;
+    uint32 totalUsed;
+    uint32 sliderValue;
+    
+    bool32 hasMemAllocated;
     void* memoryBase;
-    int32 size;
-    int32 totalUsed;
 };
 
 enum FILETYPE 
@@ -109,6 +111,7 @@ internal inline Rectangle SetMemoryBlockPos(Rectangle baseMemoryRect, memory_are
     // memory rentangle range X - x + 950
     //memory_arena.Used
     //memory_arena.Size
+    
     real32 oldRange = (real32)programMemory.Size;
     real32 newRange = (real32)(baseMemoryRect.width - baseMemoryRect.x);
     Result.height = baseMemoryRect.height / 1.1;
