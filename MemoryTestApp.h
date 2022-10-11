@@ -15,6 +15,12 @@ struct programState {
     void* memoryBase;
 };
 
+struct Pos2D
+{
+    real32 x;
+    real32 y;
+};
+
 enum FILETYPE 
 {
     AUDIO,
@@ -34,9 +40,12 @@ struct fileData
 struct memoryBlock
 {
     Color color;
-    char String[64];
-    fileData* data; // the data
+    char string[20];
+    real32 stringWidth;
+    Pos2D stringPos;
+    Rectangle stringLine;
     Rectangle rect; // rectangle that visually represents it
+    fileData* data; // the data
 };
 
 struct memory_arena
@@ -64,6 +73,12 @@ internal void AllocateBaseMemory(programState& data, memory_arena *arena, int32 
     data.totalUsed = 0;
 }
 
+internal Pos2D SetPos(real32 x, real32 y)
+{
+    Pos2D resultPos = {x,y};
+    return resultPos;
+}
+
 
 internal
 void Copy(void* source,uint32 size, void* destination)
@@ -85,6 +100,37 @@ void* pushSize_(memory_arena *Arena, memory_index size) // the size can be a typ
 	void *Result = Arena->Base + Arena->Used;
 	Arena->Used += size;
 	return (Result);
+}
+
+inline const char* EnumToChar(fileData* fileStruct)
+{
+    switch(fileStruct->type)
+    {
+        case AUDIO:
+        return "Audio";
+        break;
+        
+        case IMAGE:
+        return "Image";
+        break;
+        
+        case TEXT:
+        return  "Text";
+        break;
+        
+        case OTHER:
+        return "Other";
+        break;
+        
+        default: 
+        return "Other";
+        break;
+    }
+}
+
+internal real32 GetTextWidth(char* string, uint32 fontSize)
+{
+    return MeasureTextEx(GetFontDefault(),string,fontSize,1).x;
 }
 
 internal inline uint32 ToPageSize(uint32 input, uint32 pageSize)
@@ -114,10 +160,6 @@ internal inline Rectangle SetMemoryBlockPos(Rectangle baseMemoryRect, memory_are
     Rectangle Result = {};
     //(NOTE): to get starting point we need to get memory_arena before allocation happened
     //calculate position based on memory
-    // memory range 0 - 128MB
-    // memory rentangle range X - x + 950
-    //memory_arena.Used
-    //memory_arena.Size
     
     real32 oldRange = (real32)programMemory.Size;
     real32 newRange = (real32)(baseMemoryRect.width - baseMemoryRect.x);
@@ -214,7 +256,6 @@ internal inline uint32 numDigits(const uint32 n) {
 internal char* IntToChar(char* buffer, int32 input,const char* extraString)
 {
     // sprintf is slow find better way
-    
     uint32 totalDigits = numDigits(input);
     uint32 extraLength = strlen(extraString);
     

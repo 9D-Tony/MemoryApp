@@ -93,10 +93,10 @@ int main(void)
     Rectangle allocateRect  = {screenWidth / 2 - 60 ,screenHeight / 2 - 180,180,60};
     
     Rectangle sliderBarRect = {screenWidth / 2 - 350 ,screenHeight / 2 - 250,800,20};
-    Rectangle sliderRect = {screenWidth / 2 - 320 ,sliderBarRect.y - 32,20,80};
+    Rectangle sliderRect = {screenWidth / 2 ,sliderBarRect.y - 32,20,80};
     
     uint32 blocksAssigned = 0;
-    memoryBlock memoryBlocks[120] = {};
+    memoryBlock memoryBlocks[126] = {};
     Vector2 mousePos = { 0.0f, 0.0f };
     
     memory_arena programMemory = {};
@@ -138,10 +138,31 @@ int main(void)
                         srand(programMemory.Used);
                         
                         memoryBlocks[blocksAssigned].color = GetRandomColor();
+                        strcpy_s(memoryBlocks[blocksAssigned].string,EnumToChar(memoryBlocks[blocksAssigned].data));
+                        
+                        //get string width
+                        memoryBlocks[blocksAssigned].stringWidth = GetTextWidth(memoryBlocks[blocksAssigned].string,20);
+                        
+                        Rectangle memoryRect = memoryBlocks[blocksAssigned].rect;
+                        int32 middleBlock = memoryRect.x + (memoryRect.width / 2);
+                        
+                        // cache text position
+                        if(memoryBlocks[i].stringWidth < memoryRect.width)
+                        {
+                            memoryBlocks[blocksAssigned].stringPos = SetPos(middleBlock, memoryRect.y + (memoryRect.height / 2));
+                        }
+                        else
+                        {
+                            real32 memoryTextY = memoryRect.y - 40; 
+                            //render a rect here pointing to the middle of the block
+                            memoryBlocks[blocksAssigned].stringPos = SetPos(middleBlock - (memoryBlocks[blocksAssigned].stringWidth / 2) , memoryTextY);
+                        }
+                        
                         blocksAssigned++;
                         
                         printf("programData size: %d\n", programMemory.Size);
                         printf("programData total used: %d\n", programMemory.Used);
+                        
                     }
                 }
             }
@@ -195,9 +216,6 @@ int main(void)
             DrawRectangleRec(allocateRect ,RED);
             DrawText("Alloc memory",allocateRect.x  + (allocateRect.width / 20),allocateRect.y + (allocateRect.height / 4),25, WHITE);
             
-            //(TODO): add slider value here and assign value to memory alloc
-            // map from BarRect width to memory size values
-            
             programData.sliderValue = ToPageSize(MapRange(sliderBarRect.x,sliderBarRect.x + sliderBarRect.width,0,MAX_MEMORY,sliderRect.x), programData.pageSize);
             
             char textBuffer[20];
@@ -220,15 +238,35 @@ int main(void)
             DrawRectangleRec(baseMemoryRect,BLUE);
             
             char textBuffer[20];
-            //(NOTE): cache text here.
-            char* usedMemoryText = IntToChar(textBuffer, ToMegabytes(programMemory.Size), "Megabytes");
-            int32 textWidth = MeasureTextEx(GetFontDefault(), usedMemoryText, 20, 1).x;
             
-            DrawText(usedMemoryText,baseMemoryRect.width / 2 + textWidth,baseMemoryRect.y - baseMemoryRect.height / 2,20,WHITE);
+            //(NOTE): cache text here
+            char* totalMemory = IntToChar(textBuffer, ToMegabytes(programMemory.Size), "Megabytes");
+            int32 textWidth = MeasureTextEx(GetFontDefault(), totalMemory, 20, 1).x;
+            
+            DrawText(totalMemory,baseMemoryRect.width / 2 + textWidth,baseMemoryRect.y - baseMemoryRect.height * 1.5f,24,WHITE);
             
             for(int i = 0; i < blocksAssigned; i++)
             {
-                DrawRectangleRec(memoryBlocks[i].rect,memoryBlocks[i].color);
+                Rectangle memoryRect = memoryBlocks[i].rect;
+                
+                DrawRectangleRec(memoryRect,memoryBlocks[i].color);
+                int32 middleBlock = memoryRect.x + (memoryRect.width / 2);
+                Pos2D memStringPos = memoryBlocks[i].stringPos;
+                
+                if(memoryBlocks[i].stringWidth < memoryRect.width)
+                {
+                    //If text can fit in memory block render it in the middle of the block
+                    DrawText(memoryBlocks[i].string,memStringPos.x,memStringPos.y,20,WHITE);
+                }else
+                {
+                    
+                    // check if the memory block string is colliding and move it up if it is.
+                    
+                    Rectangle memoryTextLine = {middleBlock,memoryRect.y - 20, 4,20};
+                    
+                    DrawRectangleRec(memoryTextLine,WHITE);
+                    DrawText(memoryBlocks[i].string,memStringPos.x,memStringPos.y,20,WHITE);
+                }
             }
         }
         
