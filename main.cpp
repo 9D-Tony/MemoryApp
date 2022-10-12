@@ -125,9 +125,8 @@ int main(void)
                     {
                         //get string width
                         memoryBlocks[blocksAssigned].stringWidth = GetTextWidth(memoryBlocks[blocksAssigned].string,20);
-                        */
-                            
-                            memoryBlocks[blocksAssigned] = SetMemoryBlock(memoryBlocks[blocksAssigned],baseMemoryRect,programMemory,filePtr);
+                        
+                        memoryBlocks[blocksAssigned] = SetMemoryBlock(memoryBlocks[blocksAssigned],baseMemoryRect,programMemory,filePtr);
                         
                         Rectangle memoryRect = memoryBlocks[blocksAssigned].rect;
                         
