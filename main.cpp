@@ -155,7 +155,21 @@ int main(void)
                         {
                             real32 memoryTextY = memoryRect.y - 40; 
                             //render a rect here pointing to the middle of the block
+                            
                             memoryBlocks[blocksAssigned].stringPos = SetPos(middleBlock - (memoryBlocks[blocksAssigned].stringWidth / 2) , memoryTextY);
+                            
+                            if(blocksAssigned > 0)
+                            {
+                                memoryBlock curStringBlock = memoryBlocks[blocksAssigned];
+                                memoryBlock lastStringBlock = memoryBlocks[blocksAssigned - 1];
+                                
+                                if(lastStringBlock.stringPos.x  > curStringBlock.stringPos.x ||
+                                   lastStringBlock.stringPos.x + lastStringBlock.stringWidth > curStringBlock.stringPos.x && lastStringBlock.stringPos.x + lastStringBlock.stringWidth < 
+                                   curStringBlock.stringPos.x + curStringBlock.stringWidth)
+                                {
+                                    memoryBlocks[blocksAssigned].stringPos = SetPos(middleBlock - (memoryBlocks[blocksAssigned].stringWidth / 2) , memoryTextY - 24);
+                                }
+                            }
                         }
                         
                         blocksAssigned++;
