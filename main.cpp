@@ -74,16 +74,9 @@ int main(void)
     
     SetTraceLogLevel(LOG_NONE);
     
-    programState programData = {};
+    programState programData = SetProgramState(screenWidth,screenHeight, 60,sysInfo.dwPageSize);
     
-    programData.screenWidth = screenWidth;
-    programData.screenHeight = screenHeight;
-    programData.FPSTarget = 60; // 30 FPS is fine for now
-    programData.hasMemAllocated = false;
-    programData.sliderValue = 0;
-    programData. pageSize = sysInfo.dwPageSize;
-    
-    InitWindow(screenWidth, screenHeight, "Memory Test");
+    InitWindow(programData.screenWidth, programData.screenHeight, "Memory Test");
     
     SetTargetFPS(programData.FPSTarget);
     FilePathList droppedFiles = { 0 };
@@ -101,21 +94,17 @@ int main(void)
     
     memory_arena programMemory = {};
     fileData* tempFile = {};
-    const char* textData = "Hello world!";
     bool32 isMouseHeldDown = false;
-    
-    printf("Base memory rect X:%f, Y%f, width:%f, height:%f\n", baseMemoryRect.x, baseMemoryRect.y,baseMemoryRect.width,baseMemoryRect.height);
-    // NOTE: allow user to dynamically allocate memory
     
     while (!WindowShouldClose()) 
     {
-        (!IsWindowFocused) ? SetTargetFPS(15) : SetTargetFPS(programData.FPSTarget);
+        (!IsWindowFocused()) ? SetTargetFPS(30) : SetTargetFPS(programData.FPSTarget);
         
         mousePos = GetMousePosition();
         
         if(IsFileDropped())
         {
-            //(NOTE): runs twice when you drop a file on win 10
+            //NOTE: runs twice when you drop a file on win 10
             if (droppedFiles.count > 0) 
             {
                 UnloadDroppedFiles(droppedFiles);
@@ -128,32 +117,31 @@ int main(void)
                 for(int i = 0; i < droppedFiles.count; i++)
                 {
                     // load file into memory here create memory block rectangles
-                    uint32 beforeMemory = programMemory.Used;
-                    fileData* filePtr = LoadDataIntoMemory(programMemory,droppedFiles.paths[i]);
-                    // if we managed to  load the data
+                    int32 beforeMemory = programMemory.Used;
+                    fileData* filePtr = LoadFileIntoMemory(programMemory,droppedFiles.paths[i]);
+                    
+                    // if we managed to  load the data, if null then could not load data
                     if(filePtr != NULL)
                     {
-                        memoryBlocks[blocksAssigned].data = filePtr; 
-                        memoryBlocks[blocksAssigned].rect = SetMemoryBlockPos(baseMemoryRect,programMemory, beforeMemory);
-                        srand(programMemory.Used);
-                        
-                        memoryBlocks[blocksAssigned].color = GetRandomColor();
-                        strcpy_s(memoryBlocks[blocksAssigned].string,EnumToChar(memoryBlocks[blocksAssigned].data));
-                        
                         //get string width
                         memoryBlocks[blocksAssigned].stringWidth = GetTextWidth(memoryBlocks[blocksAssigned].string,20);
+                        */
+                            
+                            memoryBlocks[blocksAssigned] = SetMemoryBlock(memoryBlocks[blocksAssigned],baseMemoryRect,programMemory,filePtr);
                         
                         Rectangle memoryRect = memoryBlocks[blocksAssigned].rect;
+                        
                         int32 middleBlock = memoryRect.x + (memoryRect.width / 2);
                         
                         // cache text position
-                        if(memoryBlocks[i].stringWidth < memoryRect.width)
+                        if(memoryBlocks[blocksAssigned].stringWidth < memoryRect.width)
                         {
-                            memoryBlocks[blocksAssigned].stringPos = SetPos(middleBlock, memoryRect.y + (memoryRect.height / 2));
+                            memoryBlocks[blocksAssigned].stringPos = SetPos(middleBlock - (memoryBlocks[blocksAssigned].stringWidth / 2), memoryRect.y + (memoryRect.height / 2));
                         }
                         else
                         {
-                            real32 memoryTextY = memoryRect.y - 40; 
+                            real32 textOffset = 40.0;
+                            real32 memoryTextY = memoryRect.y - textOffset; 
                             //render a rect here pointing to the middle of the block
                             
                             memoryBlocks[blocksAssigned].stringPos = SetPos(middleBlock - (memoryBlocks[blocksAssigned].stringWidth / 2) , memoryTextY);
@@ -163,11 +151,16 @@ int main(void)
                                 memoryBlock curStringBlock = memoryBlocks[blocksAssigned];
                                 memoryBlock lastStringBlock = memoryBlocks[blocksAssigned - 1];
                                 
+                                printf("memoryTextY  %f, block - 1 rect Y %f \n", memoryTextY - 24 , lastStringBlock.rect.y - textOffset - 24);
+                                
+                                //TODO: collides with text rendered in middle of memory block 
                                 if(lastStringBlock.stringPos.x  > curStringBlock.stringPos.x ||
-                                   lastStringBlock.stringPos.x + lastStringBlock.stringWidth > curStringBlock.stringPos.x && lastStringBlock.stringPos.x + lastStringBlock.stringWidth < 
+                                   lastStringBlock.stringPos.x + lastStringBlock.stringWidth > curStringBlock.stringPos.x &&
+                                   lastStringBlock.stringPos.x + lastStringBlock.stringWidth < 
                                    curStringBlock.stringPos.x + curStringBlock.stringWidth)
                                 {
-                                    memoryBlocks[blocksAssigned].stringPos = SetPos(middleBlock - (memoryBlocks[blocksAssigned].stringWidth / 2) , memoryTextY - 24);
+                                    
+                                    memoryBlocks[blocksAssigned].stringPos = SetPos(middleBlock - (curStringBlock.stringWidth / 2) ,  (lastStringBlock.rect.y - textOffset - 24));
                                 }
                             }
                         }
@@ -182,7 +175,7 @@ int main(void)
             }
         }
         
-        //(NOTE): don't like AllocateButton collision check change later
+        //NOTE: don't like AllocateButton collision check
         //Allocate rect collision
         if(!programData.hasMemAllocated)
         {
@@ -222,8 +215,9 @@ int main(void)
         
         //DRAWING
         BeginDrawing();
-        
         ClearBackground(BLACK);
+        
+        char textBuffer[20];
         
         if(!programData.hasMemAllocated)
         {
@@ -232,15 +226,23 @@ int main(void)
             
             programData.sliderValue = ToPageSize(MapRange(sliderBarRect.x,sliderBarRect.x + sliderBarRect.width,0,MAX_MEMORY,sliderRect.x), programData.pageSize);
             
-            char textBuffer[20];
+            char* sliderText = 0;
+            int32 sliderTextWidth = 0;
             
             if(programData.sliderValue < Megabytes(1))
             {
-                DrawText(IntToChar(textBuffer,ToKilobytes(programData.sliderValue), "Kilobytes"),sliderBarRect.x + (sliderBarRect.width / 2), sliderBarRect.y - 80, 30, WHITE);
+                sliderText = IntToChar(textBuffer,ToKilobytes(programData.sliderValue), "Kilobytes");
+                sliderTextWidth = GetTextWidth(sliderText, 30);
+                
+                DrawText(sliderText,sliderBarRect.x + (sliderBarRect.width / 2)  - (sliderTextWidth / 2), sliderBarRect.y - 80, 30, WHITE);
                 
             }else
             {
-                DrawText(IntToChar(textBuffer, ToMegabytes(programData.sliderValue), "Megabytes"),sliderBarRect.x + (sliderBarRect.width / 2), sliderBarRect.y - 80, 30, WHITE);
+                sliderText = IntToChar(textBuffer,ToMegabytes(programData.sliderValue), "Megabytes");
+                
+                sliderTextWidth = GetTextWidth(sliderText, 30);
+                
+                DrawText(sliderText,sliderBarRect.x + (sliderBarRect.width / 2) - (sliderTextWidth / 2), sliderBarRect.y - 80, 30, WHITE);
             }
             
             DrawRectangleRec(sliderBarRect,WHITE);
@@ -248,16 +250,13 @@ int main(void)
             
         }else
         {
-            
             DrawRectangleRec(baseMemoryRect,BLUE);
             
-            char textBuffer[20];
-            
-            //(NOTE): cache text here
+            //NOTE: cache text here
             char* totalMemory = IntToChar(textBuffer, ToMegabytes(programMemory.Size), "Megabytes");
-            int32 textWidth = MeasureTextEx(GetFontDefault(), totalMemory, 20, 1).x;
+            int32 textWidth = MeasureTextEx(GetFontDefault(), totalMemory, 30, 1).x;
             
-            DrawText(totalMemory,baseMemoryRect.width / 2 + textWidth,baseMemoryRect.y - baseMemoryRect.height * 1.5f,24,WHITE);
+            DrawText(totalMemory,baseMemoryRect.width / 2 + (textWidth / 2),baseMemoryRect.y - baseMemoryRect.height * 1.5f,30,WHITE);
             
             for(int i = 0; i < blocksAssigned; i++)
             {
@@ -265,7 +264,7 @@ int main(void)
                 
                 DrawRectangleRec(memoryRect,memoryBlocks[i].color);
                 int32 middleBlock = memoryRect.x + (memoryRect.width / 2);
-                Pos2D memStringPos = memoryBlocks[i].stringPos;
+                Vector2 memStringPos = memoryBlocks[i].stringPos;
                 
                 if(memoryBlocks[i].stringWidth < memoryRect.width)
                 {
@@ -276,7 +275,7 @@ int main(void)
                     
                     // check if the memory block string is colliding and move it up if it is.
                     
-                    Rectangle memoryTextLine = {middleBlock,memoryRect.y - 20, 4,20};
+                    Rectangle memoryTextLine = {middleBlock,memoryRect.y - 20, 2,20};
                     
                     DrawRectangleRec(memoryTextLine,WHITE);
                     DrawText(memoryBlocks[i].string,memStringPos.x,memStringPos.y,20,WHITE);

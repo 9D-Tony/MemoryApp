@@ -2,23 +2,17 @@
 #define MEMORY_TEST_APP
 
 struct programState {
-    int FPSTarget;
+    int32 FPSTarget;
     char windowName[64];
     int32 screenWidth;
     int32 screenHeight;
-    uint32 pageSize;
-    uint32 size;
-    uint32 totalUsed;
-    uint32 sliderValue;
+    int32 pageSize;
+    int32 size;
+    int32 totalUsed;
+    int32 sliderValue;
     
     bool32 hasMemAllocated;
     void* memoryBase;
-};
-
-struct Pos2D
-{
-    real32 x;
-    real32 y;
 };
 
 enum FILETYPE 
@@ -42,7 +36,7 @@ struct memoryBlock
     Color color;
     char string[20];
     real32 stringWidth;
-    Pos2D stringPos;
+    Vector2 stringPos;
     Rectangle stringLine;
     Rectangle rect; // rectangle that visually represents it
     fileData* data; // the data
@@ -73,13 +67,6 @@ internal void AllocateBaseMemory(programState& data, memory_arena *arena, int32 
     data.totalUsed = 0;
 }
 
-internal Pos2D SetPos(real32 x, real32 y)
-{
-    Pos2D resultPos = {x,y};
-    return resultPos;
-}
-
-
 internal
 void Copy(void* source,uint32 size, void* destination)
 {
@@ -90,6 +77,24 @@ void Copy(void* source,uint32 size, void* destination)
 	{
 		*start++ = *dest++;
 	}
+}
+
+internal Vector2 SetPos(real32 x, real32 y)
+{
+    Vector2 resultPos = {x,y};
+    return resultPos;
+}
+
+internal programState SetProgramState(int32 screenWidth, int32 screenHeight, int32 FPSTarget, int32 pageSize)
+{
+    programState programStateResult  = {};
+    programStateResult.screenWidth = screenWidth;
+    programStateResult.screenHeight = screenHeight;
+    programStateResult.FPSTarget = FPSTarget;
+    programStateResult.hasMemAllocated = false;
+    programStateResult.sliderValue = 0;
+    programStateResult. pageSize = pageSize;
+    return (programStateResult);
 }
 
 #define pushStruct(Arena, type) (type *)pushSize_(Arena,sizeof(type))
@@ -158,7 +163,7 @@ internal Color GetRandomColor()
 internal inline Rectangle SetMemoryBlockPos(Rectangle baseMemoryRect, memory_arena& programMemory, uint32 beforeUsedMemory)
 {
     Rectangle Result = {};
-    //(NOTE): to get starting point we need to get memory_arena before allocation happened
+    //NOTE: to get starting point we need to get memory_arena before allocation happened
     //calculate position based on memory
     
     real32 oldRange = (real32)programMemory.Size;
@@ -186,7 +191,27 @@ internal inline bool32 CheckIfExtension(char* extensionArray,uint32 arraySize,ch
     return false;
 }
 
-internal fileData* LoadDataIntoMemory(memory_arena& programMemory, char* filename)
+internal memoryBlock SetMemoryBlock(memoryBlock block,Rectangle baseMemoryRect,memory_arena programMemory, fileData* filePtr)
+{
+    memoryBlock resultBlock = {};
+    resultBlock.data = filePtr; 
+    
+    int32 beforeMemory = programMemory.Used - filePtr->size;
+    resultBlock.rect = SetMemoryBlockPos(baseMemoryRect,programMemory, beforeMemory);
+    
+    srand(programMemory.Used);
+    resultBlock.color = GetRandomColor();
+    
+    strcpy_s(resultBlock.string,EnumToChar(resultBlock.data));
+    
+    //NOTE: maybe standardise string sizes
+    resultBlock.stringWidth = GetTextWidth(resultBlock.string,20);
+    
+    return resultBlock;
+    
+}
+
+internal fileData* LoadFileIntoMemory(memory_arena& programMemory, char* filename)
 {
     // NOTE: can strlen fail here?
     //fileData 
@@ -206,18 +231,18 @@ internal fileData* LoadDataIntoMemory(memory_arena& programMemory, char* filenam
     
     // get memory for the file
     fileResult = pushStruct(&programMemory,fileData);
-    fileResult->size = fileLoadResult.size;
+    fileResult->size = sizeof(fileData) + fileLoadResult.size;
     fileResult->baseData = pushArray(&programMemory,fileLoadResult.size,uint8);
     
     //works if the filename only has one "." in it,  
-    //(TODO): search from the back of the string to get the extension.
+    //TODO: search from the back of the string to get the extension.
     if(foundChar != filenameLength)
     {
         int32 extensionLength = filenameLength - foundChar;
         strcpy_s(extensionString, filename + foundChar);
         printf("extension is: %s \n",extensionString);
         
-        //(TODO): BLECH, what is this?!
+        //TODO: BLECH, what is this?!
         if(strcmp(extensionString, ".txt") == 0)
         {
             fileResult->type = TEXT;
@@ -263,7 +288,7 @@ internal char* IntToChar(char* buffer, int32 input,const char* extraString)
     return buffer;
 }
 
-internal void ClearMemory(memory_arena *Arena, void *baseAddress,  memory_index size)
+internal void ClearMemory(memory_arena *Arena, void *baseAddress, memory_index size)
 {
     assert(size < Arena->Used);
     ZeroMemory(baseAddress,size);
