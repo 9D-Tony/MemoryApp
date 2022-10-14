@@ -1,20 +1,6 @@
 #ifndef MEMORY_TEST_APP
 #define MEMORY_TEST_APP
 
-struct programState {
-    int32 FPSTarget;
-    char windowName[64];
-    int32 screenWidth;
-    int32 screenHeight;
-    int32 pageSize;
-    int32 size;
-    int32 totalUsed;
-    int32 sliderValue;
-    
-    bool32 hasMemAllocated;
-    void* memoryBase;
-};
-
 enum FILETYPE 
 {
     AUDIO,
@@ -34,12 +20,33 @@ struct fileData
 struct memoryBlock
 {
     Color color;
+    bool32 selected;
     char string[20];
     real32 stringWidth;
     Vector2 stringPos;
     Rectangle stringLine;
     Rectangle rect; // rectangle that visually represents it
     fileData* data; // the data
+};
+
+struct programState {
+    int32 FPSTarget;
+    char windowName[64];
+    
+    int32 screenWidth;
+    int32 screenHeight;
+    int32 pageSize;
+    int32 size;
+    int32 totalUsed;
+    int32 sliderValue;
+    
+    memoryBlock* selectedBlock;
+    Color blockLastColor;
+    Texture2D globalTex;
+    Sound globalSound;
+    
+    bool32 hasMemAllocated;
+    void* memoryBase;
 };
 
 struct memory_arena
@@ -176,6 +183,32 @@ internal inline Rectangle SetMemoryBlockPos(Rectangle baseMemoryRect, memory_are
     Result.width = ((real32)programMemory.Used * newRange / oldRange + baseMemoryRect.x) - Result.x; 
     
     return Result;
+}
+
+internal Sound LoadSoundFrmMemory(Sound audio, char* filetype, uint8* data, int32 size)
+{
+    // Load audio and return it to play it
+    //TODO: impliment audio loading and returning Sound
+    Sound sound = {};
+    
+    //audio = LoadImageFromMemory(filetype, data, size);
+    return sound;
+}
+
+internal Texture2D LoadImageFrmMemory(Image inputImage, char* filetype, uint8* data, int32 size)
+{
+    Texture2D texture = {};
+    inputImage = LoadImageFromMemory(filetype, data, size);
+    texture = LoadTextureFromImage(inputImage);
+    
+    // if texture can't load for some reason
+    if(texture.id == NULL)
+    {
+        return texture;
+    }
+    
+    UnloadImage(inputImage);
+    return (texture);
 }
 
 internal inline bool32 CheckIfExtension(char* extensionArray,uint32 arraySize,char* extension)

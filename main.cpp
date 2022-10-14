@@ -1,4 +1,3 @@
-
 #include <iostream>
 #include <assert.h>
 #include "include/raylib.h"
@@ -168,7 +167,6 @@ int main(void)
                         
                         printf("programData size: %d\n", programMemory.Size);
                         printf("programData total used: %d\n", programMemory.Used);
-                        
                     }
                 }
             }
@@ -249,6 +247,11 @@ int main(void)
             
         }else
         {
+            
+            //TODO: Do selected collision here
+            
+            
+            
             DrawRectangleRec(baseMemoryRect,BLUE);
             
             //NOTE: cache text here
@@ -261,7 +264,26 @@ int main(void)
             {
                 Rectangle memoryRect = memoryBlocks[i].rect;
                 
+                // colliding with a memory rect
+                if (CheckCollisionPointRec(mousePos, memoryRect) && memoryRect.width > 5)
+                {
+                    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+                    {
+                        // reset last block to original color
+                        if(programData.selectedBlock != NULL)
+                        {
+                            programData.selectedBlock->color = programData.blockLastColor; 
+                        }
+                        
+                        programData.selectedBlock = &memoryBlocks[i]; 
+                        programData.blockLastColor = memoryBlocks[i].color;
+                        
+                        memoryBlocks[i].color = GRAY;
+                    }
+                }
+                
                 DrawRectangleRec(memoryRect,memoryBlocks[i].color);
+                
                 int32 middleBlock = memoryRect.x + (memoryRect.width / 2);
                 Vector2 memStringPos = memoryBlocks[i].stringPos;
                 
@@ -271,7 +293,6 @@ int main(void)
                     DrawText(memoryBlocks[i].string,memStringPos.x,memStringPos.y,20,WHITE);
                 }else
                 {
-                    
                     // check if the memory block string is colliding and move it up if it is.
                     
                     Rectangle memoryTextLine = {middleBlock,memoryRect.y - 20, 2,20};
