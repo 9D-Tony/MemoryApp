@@ -1,5 +1,8 @@
 #include <iostream>
 #include <assert.h>
+
+#define SUPPORT_FILEFORMAT_FLAC
+
 #include "include/raylib.h"
 //defines so no errors from raylib when including windows.h
 #if defined(WIN32) || defined(_WIN32) && !defined(__GNUC__)      
@@ -33,6 +36,7 @@
 #define NOSCROLL          // SB_* and scrolling routines
 #define NOSERVICE         // All Service Controller routines, SERVICE_ equates, etc.
 #define NOSOUND           // Sound driver routines
+#define MMNOSOUND         // PlaySound(A) ect
 #define NOTEXTMETRIC      // typedef TEXTMETRIC and associated routines
 #define NOWH              // SetWindowsHook and WH_*
 #define NOWINOFFSETS      // GWL_*, GCL_*, associated routines
@@ -53,6 +57,7 @@
 #define Megabytes(Value) (Kilobytes(Value) * 1024)
 #define Gigabytes(Value) (Megabytes(Value) * 1024)
 #define Terabytes(Value) (Gigabytes(Value) * 1024)
+
 #define ArrayCount(a) (sizeof(a) / sizeof(*a))
 #define MapRange(oldMin,oldMax,newMin,newMax,value) (newMin + (value-oldMin)*(newMax-newMin)/(oldMax-oldMin))
 
@@ -76,6 +81,8 @@ int main(void)
     programState programData = SetProgramState(screenWidth,screenHeight, 60,sysInfo.dwPageSize);
     
     InitWindow(programData.screenWidth, programData.screenHeight, "Memory Test");
+    
+    InitAudioDevice();
     
     SetTargetFPS(programData.FPSTarget);
     FilePathList droppedFiles = { 0 };
@@ -148,8 +155,6 @@ int main(void)
                             {
                                 memoryBlock curStringBlock = memoryBlocks[blocksAssigned];
                                 memoryBlock lastStringBlock = memoryBlocks[blocksAssigned - 1];
-                                
-                                printf("memoryTextY  %f, block - 1 rect Y %f \n", memoryTextY - 24 , lastStringBlock.rect.y - textOffset - 24);
                                 
                                 //TODO: collides with text rendered in middle of memory block 
                                 if(lastStringBlock.stringPos.x  > curStringBlock.stringPos.x ||
@@ -245,13 +250,9 @@ int main(void)
             DrawRectangleRec(sliderBarRect,WHITE);
             DrawRectangleRec(sliderRect, BLUE);
             
-        }else
+        }else 
         {
-            
-            //TODO: Do selected collision here
-            
-            
-            
+            // IF MEMORY ALLOCATED
             DrawRectangleRec(baseMemoryRect,BLUE);
             
             //NOTE: cache text here
@@ -277,13 +278,30 @@ int main(void)
                         
                         programData.selectedBlock = &memoryBlocks[i]; 
                         programData.blockLastColor = memoryBlocks[i].color;
-                        
                         memoryBlocks[i].color = GRAY;
+                        
+                        // get file entension and load image/audio
+                        fileData* memoryData = memoryBlocks[i].data;
+                        
+                        if(CheckIfExtension((char*)supportedImageFiles,ArrayCount(supportedImageFiles), memoryData->extension))
+                        {
+                            programData.globalTex = LoadImageFrmMemory(memoryData); 
+                        }
+                        
+                        if(CheckIfExtension((char*)supportedAudioFiles,ArrayCount(supportedAudioFiles), memoryData->extension))
+                        {
+                            if(programData.globalSound.frameCount > 0)
+                            {
+                                StopSound(programData.globalSound);
+                            }
+                            
+                            programData.globalSound = LoadSoundFromMemory(memoryData);
+                            PlaySound(programData.globalSound);
+                        }
                     }
                 }
                 
                 DrawRectangleRec(memoryRect,memoryBlocks[i].color);
-                
                 int32 middleBlock = memoryRect.x + (memoryRect.width / 2);
                 Vector2 memStringPos = memoryBlocks[i].stringPos;
                 
@@ -300,12 +318,25 @@ int main(void)
                     DrawRectangleRec(memoryTextLine,WHITE);
                     DrawText(memoryBlocks[i].string,memStringPos.x,memStringPos.y,20,WHITE);
                 }
+                
+                if(programData.globalTex.id > 0)
+                {
+                    //NOTE: have proper image scaling
+                    Vector2 texturePos = SetTextureAtCenter(baseMemoryRect,programData.globalTex,0.5f);
+                    texturePos.y += (baseMemoryRect.height / 2) + (programData.globalTex.height * 0.5f) / 2 + 20;
+                    
+                    //{baseMemoryRect.x + baseMemoryRect.width / 2 - (programData.globalTex.width * 0.5f) / 2 ,baseMemoryRect.y - (programData.globalTex.height * 0.5f)};
+                    
+                    DrawTextureEx(programData.globalTex,texturePos,0,0.5f,WHITE);
+                }
             }
         }
         
         EndDrawing();
     }
     
+    UnloadSound(programData.globalSound);
+    CloseAudioDevice();
     CloseWindow();
     
     FreeBase(programData);

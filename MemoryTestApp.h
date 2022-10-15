@@ -13,6 +13,7 @@ struct fileData
 {
     // files that are not images / audio
     int32 size;
+    char extension[12];
     FILETYPE type;
     uint8* baseData;
 };
@@ -30,8 +31,8 @@ struct memoryBlock
 };
 
 struct programState {
-    int32 FPSTarget;
     char windowName[64];
+    int32 FPSTarget;
     
     int32 screenWidth;
     int32 screenHeight;
@@ -57,7 +58,7 @@ struct memory_arena
 };
 
 char supportedTxtFiles[5][8] = { ".txt", ".blah"};
-char supportedAudioFiles[5][8] = { ".wav",".mp3",".ogg", ".flac"};
+char supportedAudioFiles[5][8] = { ".wav",".mp3",".ogg"}; // have to rebuild for flac support
 char supportedImageFiles[5][8] = { ".gif", ".png", ".jpg"};
 
 internal void AllocateBaseMemory(programState& data, memory_arena *arena, int32 memSize)
@@ -90,6 +91,13 @@ internal Vector2 SetPos(real32 x, real32 y)
 {
     Vector2 resultPos = {x,y};
     return resultPos;
+}
+
+internal inline Vector2 SetTextureAtCenter(Rectangle base,Texture2D centered, real32 scale = 1.0f)
+{
+    Vector2 texturePos = {base.x + base.width / 2 - (centered.width * scale) / 2 ,base.y + (base.height / 2) - (centered.height * scale) / 2};
+    
+    return texturePos;
 }
 
 internal programState SetProgramState(int32 screenWidth, int32 screenHeight, int32 FPSTarget, int32 pageSize)
@@ -185,33 +193,45 @@ internal inline Rectangle SetMemoryBlockPos(Rectangle baseMemoryRect, memory_are
     return Result;
 }
 
-internal Sound LoadSoundFrmMemory(Sound audio, char* filetype, uint8* data, int32 size)
+internal Sound LoadSoundFromMemory(fileData* data)
 {
-    // Load audio and return it to play it
-    //TODO: impliment audio loading and returning Sound
     Sound sound = {};
+    Wave wave = {};
     
-    //audio = LoadImageFromMemory(filetype, data, size);
+    wave = LoadWaveFromMemory(data->extension, data->baseData, data->size - sizeof(fileData));
+    
+    if(wave.frameCount == 0)
+    {
+        printf("could not load file with extension: %f\n", data->extension);
+        return sound;
+    }
+    
+    sound = LoadSoundFromWave(wave);
+    UnloadWave(wave);
+    
     return sound;
 }
 
-internal Texture2D LoadImageFrmMemory(Image inputImage, char* filetype, uint8* data, int32 size)
+internal Texture2D LoadImageFrmMemory(fileData* data)
 {
     Texture2D texture = {};
-    inputImage = LoadImageFromMemory(filetype, data, size);
+    
+    Image inputImage = LoadImageFromMemory(data->extension, data->baseData, data->size - sizeof(fileData));
     texture = LoadTextureFromImage(inputImage);
     
     // if texture can't load for some reason
     if(texture.id == NULL)
     {
+        printf("can't load image\n");
         return texture;
     }
     
     UnloadImage(inputImage);
+    
     return (texture);
 }
 
-internal inline bool32 CheckIfExtension(char* extensionArray,uint32 arraySize,char* extension)
+internal inline bool32 CheckIfExtension(char* extensionArray,int32 arraySize, char* extension)
 {
     for(int i=0; i < arraySize; i++)
     {
@@ -241,7 +261,6 @@ internal memoryBlock SetMemoryBlock(memoryBlock block,Rectangle baseMemoryRect,m
     resultBlock.stringWidth = GetTextWidth(resultBlock.string,20);
     
     return resultBlock;
-    
 }
 
 internal fileData* LoadFileIntoMemory(memory_arena& programMemory, char* filename)
@@ -251,9 +270,10 @@ internal fileData* LoadFileIntoMemory(memory_arena& programMemory, char* filenam
     fileData* fileResult = {};
     fileInfo fileLoadResult = Win32LoadFile(filename);
     
-    //Error could not get file
+    //Error could not fit file inside memory
     if(fileLoadResult.data == NULL || fileLoadResult.size > (programMemory.Size - programMemory.Used))
     {
+        printf("File could not fit inside avaliable memory\n");
         return NULL;
     }
     
@@ -274,7 +294,9 @@ internal fileData* LoadFileIntoMemory(memory_arena& programMemory, char* filenam
         int32 extensionLength = filenameLength - foundChar;
         strcpy_s(extensionString, filename + foundChar);
         printf("extension is: %s \n",extensionString);
+        strcpy_s(fileResult->extension, extensionString);
         
+        //NOTE:  doesn't support UTF-8
         //TODO: BLECH, what is this?!
         if(strcmp(extensionString, ".txt") == 0)
         {
@@ -282,13 +304,13 @@ internal fileData* LoadFileIntoMemory(memory_arena& programMemory, char* filenam
             printf("file is a text file with size: %d\n", fileLoadResult.size);
             Copy(fileResult->baseData,fileLoadResult.size,(uint8*)fileLoadResult.data);
             
-        }else if(CheckIfExtension((char*)supportedAudioFiles, ArrayCount(supportedAudioFiles), extensionString))
+        }else if(CheckIfExtension((char*)supportedAudioFiles,ArrayCount(supportedImageFiles), extensionString))
         {
             fileResult->type = AUDIO;
             printf("file is a text file with size: %d\n", fileLoadResult.size);
             Copy(fileResult->baseData,fileLoadResult.size,(uint8*)fileLoadResult.data);
             
-        }else if(CheckIfExtension((char*)supportedImageFiles, ArrayCount(supportedAudioFiles), extensionString))
+        }else if(CheckIfExtension((char*)supportedImageFiles,ArrayCount(supportedImageFiles), extensionString))
         {
             fileResult->type = IMAGE;
             printf("file is a text file with size: %d\n", fileLoadResult.size);
