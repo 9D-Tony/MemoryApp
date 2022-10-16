@@ -28,6 +28,14 @@ struct fileInfo
     void* data;
 };
 
+internal int32 GetSystemPageSize()
+{
+    SYSTEM_INFO sysInfo; // system infomation
+    GetSystemInfo(&sysInfo);
+    
+    return sysInfo.dwPageSize;
+}
+
 inline uint32
 SafeTrucate64(uint64 value)
 {

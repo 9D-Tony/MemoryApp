@@ -18,6 +18,7 @@ struct fileData
     uint8* baseData;
 };
 
+// Memory blocks are the assigned blocks that go within the baseMemoryRect.
 struct memoryBlock
 {
     Color color;
@@ -59,7 +60,7 @@ struct memory_arena
 
 char supportedTxtFiles[5][8] = { ".txt", ".blah"};
 char supportedAudioFiles[5][8] = { ".wav",".mp3",".ogg"}; // have to rebuild for flac support
-char supportedImageFiles[5][8] = { ".gif", ".png", ".jpg"};
+char supportedImageFiles[6][8] = { ".gif", ".png", ".jpg", ".JPG", ".PNG",".GIF"};
 
 internal void AllocateBaseMemory(programState& data, memory_arena *arena, int32 memSize)
 {
@@ -175,6 +176,17 @@ internal Color GetRandomColor()
     return blockColor;
 }
 
+internal real32 ShinkToFitBounds(Texture2D texture, Rectangle rect)
+{
+    //width height
+    real32 scaleFactorX = rect.width / texture.width;
+    real32 scaleFactorY = rect.height / texture.height;
+    
+    float minimumNewSizeRatio = Min(scaleFactorX, scaleFactorY);
+    
+    return minimumNewSizeRatio;
+}
+
 internal inline Rectangle SetMemoryBlockPos(Rectangle baseMemoryRect, memory_arena& programMemory, uint32 beforeUsedMemory)
 {
     Rectangle Result = {};
@@ -193,10 +205,17 @@ internal inline Rectangle SetMemoryBlockPos(Rectangle baseMemoryRect, memory_are
     return Result;
 }
 
-internal Sound LoadSoundFromMemory(fileData* data)
+internal Sound LoadSoundFromMemory(fileData* data, programState programData)
 {
     Sound sound = {};
     Wave wave = {};
+    
+    //NOTE: maybe consider a ring buffer for audio and images
+    //unload the other sound from memory first
+    if(programData.globalSound.frameCount > 0)
+    {
+        UnloadSound(programData.globalSound);
+    }
     
     wave = LoadWaveFromMemory(data->extension, data->baseData, data->size - sizeof(fileData));
     
@@ -206,15 +225,22 @@ internal Sound LoadSoundFromMemory(fileData* data)
         return sound;
     }
     
+    //loading sound causes it's own allocation in raylib.dll
     sound = LoadSoundFromWave(wave);
     UnloadWave(wave);
     
     return sound;
 }
 
-internal Texture2D LoadImageFrmMemory(fileData* data)
+internal Texture2D LoadImageFrmMemory(fileData* data, programState programData)
 {
+    //NOTE: For the moment cannot load images that have extensions in all caps.
     Texture2D texture = {};
+    
+    if(programData.globalTex.id > 0)
+    {
+        UnloadTexture(programData.globalTex);
+    }
     
     Image inputImage = LoadImageFromMemory(data->extension, data->baseData, data->size - sizeof(fileData));
     texture = LoadTextureFromImage(inputImage);

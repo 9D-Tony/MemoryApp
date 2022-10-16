@@ -63,22 +63,21 @@
 
 #define ToKilobytes(Value) ((Value) / 1024)
 #define ToMegabytes(Value) (ToKilobytes(Value) / 1024)
+#define Min(X, Y) (((X) < (Y)) ? (X) : (Y))
 
 #include "MemoryTestApp.h"
 
 #define MAX_MEMORY Megabytes(10)
+#define MIN_MEMORY Megabytes(2)
 
 int main(void)
 {
     const int screenWidth = 1280;
     const int screenHeight = 720;
     
-    SYSTEM_INFO sysInfo; // system infomation
-    GetSystemInfo(&sysInfo);
-    
     SetTraceLogLevel(LOG_NONE);
     
-    programState programData = SetProgramState(screenWidth,screenHeight, 60,sysInfo.dwPageSize);
+    programState programData = SetProgramState(screenWidth,screenHeight, 120,GetSystemPageSize());
     
     InitWindow(programData.screenWidth, programData.screenHeight, "Memory Test");
     
@@ -88,9 +87,8 @@ int main(void)
     FilePathList droppedFiles = { 0 };
     
     //Retangles
-    Rectangle baseMemoryRect = {screenWidth / 2 - 500,screenHeight / 2,1000,100};
+    Rectangle baseMemoryRect = {screenWidth / 2 - 500,screenHeight / 2 - 100,1000,100};
     Rectangle allocateRect  = {screenWidth / 2 - 60 ,screenHeight / 2 - 180,180,60};
-    
     Rectangle sliderBarRect = {screenWidth / 2 - 350 ,screenHeight / 2 - 250,800,20};
     Rectangle sliderRect = {screenWidth / 2 ,sliderBarRect.y - 32,20,80};
     
@@ -193,6 +191,7 @@ int main(void)
                 }
             }
             
+            //Slider rect mouse input
             if(CheckCollisionPointRec(mousePos, sliderRect))
             {
                 if (IsMouseButtonDown(MOUSE_BUTTON_LEFT))
@@ -209,6 +208,7 @@ int main(void)
                 }
                 
                 sliderRect.x = mousePos.x - (sliderRect.width / 2);
+                
                 if(sliderRect.x > (sliderBarRect.x + sliderBarRect.width)) sliderRect.x = (sliderBarRect.x + sliderBarRect.width) - 0.1f;
                 
                 if(sliderRect.x < sliderBarRect.x) sliderRect.x = sliderBarRect.x + 0.1f;
@@ -226,7 +226,7 @@ int main(void)
             DrawRectangleRec(allocateRect ,RED);
             DrawText("Alloc memory",allocateRect.x  + (allocateRect.width / 20),allocateRect.y + (allocateRect.height / 4),25, WHITE);
             
-            programData.sliderValue = ToPageSize(MapRange(sliderBarRect.x,sliderBarRect.x + sliderBarRect.width,0,MAX_MEMORY,sliderRect.x), programData.pageSize);
+            programData.sliderValue = ToPageSize(MapRange(sliderBarRect.x,sliderBarRect.x + sliderBarRect.width,MIN_MEMORY,MAX_MEMORY,sliderRect.x), programData.pageSize);
             
             char* sliderText = 0;
             int32 sliderTextWidth = 0;
@@ -248,11 +248,12 @@ int main(void)
             }
             
             DrawRectangleRec(sliderBarRect,WHITE);
-            DrawRectangleRec(sliderRect, BLUE);
             
-        }else 
+            
+            (!isMouseHeldDown) ? DrawRectangleRec(sliderRect, BLUE) : DrawRectangleRec(sliderRect, DARKBLUE);
+            
+        }else // IF MEMORY ALLOCATED
         {
-            // IF MEMORY ALLOCATED
             DrawRectangleRec(baseMemoryRect,BLUE);
             
             //NOTE: cache text here
@@ -283,9 +284,10 @@ int main(void)
                         // get file entension and load image/audio
                         fileData* memoryData = memoryBlocks[i].data;
                         
+                        // Actions for each filetype
                         if(CheckIfExtension((char*)supportedImageFiles,ArrayCount(supportedImageFiles), memoryData->extension))
                         {
-                            programData.globalTex = LoadImageFrmMemory(memoryData); 
+                            programData.globalTex = LoadImageFrmMemory(memoryData,programData); 
                         }
                         
                         if(CheckIfExtension((char*)supportedAudioFiles,ArrayCount(supportedAudioFiles), memoryData->extension))
@@ -295,14 +297,17 @@ int main(void)
                                 StopSound(programData.globalSound);
                             }
                             
-                            programData.globalSound = LoadSoundFromMemory(memoryData);
+                            programData.globalSound = LoadSoundFromMemory(memoryData,programData);
                             PlaySound(programData.globalSound);
                         }
                     }
                 }
                 
+                // Draw each memory block
                 DrawRectangleRec(memoryRect,memoryBlocks[i].color);
+                
                 int32 middleBlock = memoryRect.x + (memoryRect.width / 2);
+                
                 Vector2 memStringPos = memoryBlocks[i].stringPos;
                 
                 if(memoryBlocks[i].stringWidth < memoryRect.width)
@@ -322,12 +327,16 @@ int main(void)
                 if(programData.globalTex.id > 0)
                 {
                     //NOTE: have proper image scaling
-                    Vector2 texturePos = SetTextureAtCenter(baseMemoryRect,programData.globalTex,0.5f);
-                    texturePos.y += (baseMemoryRect.height / 2) + (programData.globalTex.height * 0.5f) / 2 + 20;
                     
-                    //{baseMemoryRect.x + baseMemoryRect.width / 2 - (programData.globalTex.width * 0.5f) / 2 ,baseMemoryRect.y - (programData.globalTex.height * 0.5f)};
+                    Rectangle testRect = {baseMemoryRect.x + (baseMemoryRect.width / 2) - 200,baseMemoryRect.y + baseMemoryRect.height, 400,   programData.screenHeight - (baseMemoryRect.y + baseMemoryRect.height) };
                     
-                    DrawTextureEx(programData.globalTex,texturePos,0,0.5f,WHITE);
+                    real32 scale = ShinkToFitBounds(programData.globalTex,testRect);
+                    
+                    Vector2 texturePos = SetTextureAtCenter(baseMemoryRect,programData.globalTex,scale);
+                    
+                    texturePos.y += (baseMemoryRect.height / 2) + (programData.globalTex.height * scale) / 2;
+                    
+                    DrawTextureEx(programData.globalTex,texturePos,0,scale,WHITE);
                 }
             }
         }
