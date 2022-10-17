@@ -205,16 +205,16 @@ internal inline Rectangle SetMemoryBlockPos(Rectangle baseMemoryRect, memory_are
     return Result;
 }
 
-internal Sound LoadSoundFromMemory(fileData* data, programState programData)
+internal Sound LoadSoundFromMemory(fileData* data, programState* programData)
 {
     Sound sound = {};
     Wave wave = {};
     
     //NOTE: maybe consider a ring buffer for audio and images
     //unload the other sound from memory first
-    if(programData.globalSound.frameCount > 0)
+    if(programData->globalSound.frameCount > 0)
     {
-        UnloadSound(programData.globalSound);
+        UnloadSound(programData->globalSound);
     }
     
     wave = LoadWaveFromMemory(data->extension, data->baseData, data->size - sizeof(fileData));
@@ -232,14 +232,14 @@ internal Sound LoadSoundFromMemory(fileData* data, programState programData)
     return sound;
 }
 
-internal Texture2D LoadImageFrmMemory(fileData* data, programState programData)
+internal Texture2D LoadImageFrmMemory(fileData* data, programState* programData)
 {
     //NOTE: For the moment cannot load images that have extensions in all caps.
     Texture2D texture = {};
     
-    if(programData.globalTex.id > 0)
+    if(programData->globalTex.id > 0)
     {
-        UnloadTexture(programData.globalTex);
+        UnloadTexture(programData->globalTex);
     }
     
     Image inputImage = LoadImageFromMemory(data->extension, data->baseData, data->size - sizeof(fileData));
@@ -268,6 +268,48 @@ internal inline bool32 CheckIfExtension(char* extensionArray,int32 arraySize, ch
     }
     
     return false;
+}
+
+internal void MemoryblocksMouseIO(uint32 index, memoryBlock* memoryBlocks, Vector2 mousePos, programState* programData)
+{
+    Rectangle memoryRect = memoryBlocks[index].rect;
+    
+    // colliding with a memory rect
+    if (CheckCollisionPointRec(mousePos, memoryRect) && memoryRect.width > 5)
+    {
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+        {
+            // reset last block to original color
+            if(programData->selectedBlock != NULL)
+            {
+                programData->selectedBlock->color = programData->blockLastColor; 
+            }
+            
+            programData->selectedBlock = &memoryBlocks[index]; 
+            programData->blockLastColor = memoryBlocks[index].color;
+            memoryBlocks[index].color = GRAY;
+            
+            // get file entension and load image/audio
+            fileData* memoryData = memoryBlocks[index].data;
+            
+            // Actions for each filetype
+            if(CheckIfExtension((char*)supportedImageFiles,ArrayCount(supportedImageFiles), memoryData->extension))
+            {
+                programData->globalTex = LoadImageFrmMemory(memoryData,programData); 
+            }
+            
+            if(CheckIfExtension((char*)supportedAudioFiles,ArrayCount(supportedAudioFiles), memoryData->extension))
+            {
+                if(programData->globalSound.frameCount > 0)
+                {
+                    StopSound(programData->globalSound);
+                }
+                
+                programData->globalSound = LoadSoundFromMemory(memoryData,programData);
+                PlaySound(programData->globalSound);
+            }
+        }
+    }
 }
 
 internal memoryBlock SetMemoryBlock(memoryBlock block,Rectangle baseMemoryRect,memory_arena programMemory, fileData* filePtr)
@@ -333,19 +375,19 @@ internal fileData* LoadFileIntoMemory(memory_arena& programMemory, char* filenam
         }else if(CheckIfExtension((char*)supportedAudioFiles,ArrayCount(supportedImageFiles), extensionString))
         {
             fileResult->type = AUDIO;
-            printf("file is a text file with size: %d\n", fileLoadResult.size);
+            printf("file is an audio file with size: %d\n", fileLoadResult.size);
             Copy(fileResult->baseData,fileLoadResult.size,(uint8*)fileLoadResult.data);
             
         }else if(CheckIfExtension((char*)supportedImageFiles,ArrayCount(supportedImageFiles), extensionString))
         {
             fileResult->type = IMAGE;
-            printf("file is a text file with size: %d\n", fileLoadResult.size);
+            printf("file is an image file with size: %d\n", fileLoadResult.size);
             Copy(fileResult->baseData,fileLoadResult.size,(uint8*)fileLoadResult.data);
             
         }else
         {
             fileResult->type = OTHER;
-            printf("file is a text file with size: %d\n", fileLoadResult.size);
+            printf("file is other filetype  with size: %d\n", fileLoadResult.size);
             Copy(fileResult->baseData,fileLoadResult.size,(uint8*)fileLoadResult.data);
         }
     }
@@ -354,18 +396,71 @@ internal fileData* LoadFileIntoMemory(memory_arena& programMemory, char* filenam
     return(fileResult);
 }
 
-internal inline uint32 numDigits(const uint32 n) {
+internal void SetDroppedFiles(memoryBlock* memoryBlocks,uint32 blocksAssigned)
+{
+    // if we managed to  load the data, if null then could not load data
+    
+    //get string width
+    Rectangle memoryRect = memoryBlocks[blocksAssigned].rect;
+    
+    int32 middleBlock = memoryRect.x + (memoryRect.width / 2);
+    
+    // cache text position
+    if(memoryBlocks[blocksAssigned].stringWidth < memoryRect.width)
+    {
+        memoryBlocks[blocksAssigned].stringPos = SetPos(middleBlock - (memoryBlocks[blocksAssigned].stringWidth / 2), memoryRect.y + (memoryRect.height / 2));
+    }
+    else
+    {
+        real32 textOffset = 40.0;
+        real32 memoryTextY = memoryRect.y - textOffset; 
+        //render a rect here pointing to the middle of the block
+        
+        memoryBlocks[blocksAssigned].stringPos = SetPos(middleBlock - (memoryBlocks[blocksAssigned].stringWidth / 2) , memoryTextY);
+        
+        if(blocksAssigned > 0)
+        {
+            memoryBlock curStringBlock = memoryBlocks[blocksAssigned];
+            memoryBlock lastStringBlock = memoryBlocks[blocksAssigned - 1];
+            
+            //TODO: collides with text rendered in middle of memory block 
+            if(lastStringBlock.stringPos.x  > curStringBlock.stringPos.x ||
+               lastStringBlock.stringPos.x + lastStringBlock.stringWidth > curStringBlock.stringPos.x &&
+               lastStringBlock.stringPos.x + lastStringBlock.stringWidth < 
+               curStringBlock.stringPos.x + curStringBlock.stringWidth)
+            {
+                
+                memoryBlocks[blocksAssigned].stringPos = SetPos(middleBlock - (curStringBlock.stringWidth / 2) ,  (lastStringBlock.rect.y - textOffset - 24));
+            }
+        }
+    }
+}
+
+internal inline uint32 numDigits(const uint32 n) 
+{
     if (n < 10) return 1;
     return 1 + numDigits(n / 10);
 }
 
 internal char* IntToChar(char* buffer, int32 input,const char* extraString)
 {
-    // sprintf is slow find better way
+    //NOTE: sprintf is slow find better way
     uint32 totalDigits = numDigits(input);
     uint32 extraLength = strlen(extraString);
     
     sprintf_s(buffer,totalDigits + extraLength + 2, "%d %s", input, extraString);
+    return buffer;
+}
+
+internal char* FloatToChar(char* buffer, real32 input, const char* extraString, uint32 precision)
+{
+    // f - floor(f) to get decimal part and then use precision to get fractional parts.
+    // not accurate but works for the moment.
+    // NOTE: sprintf rounds if over .06 of a number. 4.468 > 4.47 ect doing the x 10 trick will fix this.
+    uint32 totalDigits = numDigits(input);
+    uint32 extraLength = strlen(extraString);
+    
+    sprintf_s(buffer,totalDigits + extraLength + 2 + (precision + totalDigits + 1), "%.2f %s", input, extraString);
     return buffer;
 }
 

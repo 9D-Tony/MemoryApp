@@ -68,16 +68,17 @@
 #include "MemoryTestApp.h"
 
 #define MAX_MEMORY Megabytes(10)
-#define MIN_MEMORY Megabytes(2)
+#define MIN_MEMORY Kilobytes(500)
 
 int main(void)
 {
     const int screenWidth = 1280;
     const int screenHeight = 720;
     
+    // stop raylib printing things
     SetTraceLogLevel(LOG_NONE);
     
-    programState programData = SetProgramState(screenWidth,screenHeight, 120,GetSystemPageSize());
+    programState programData = SetProgramState(screenWidth,screenHeight, 60,GetSystemPageSize());
     
     InitWindow(programData.screenWidth, programData.screenHeight, "Memory Test");
     
@@ -116,6 +117,7 @@ int main(void)
             
             droppedFiles = LoadDroppedFiles();
             
+            // droppedFiles, programMemory, MemoryBlocks
             if(droppedFiles.paths != NULL)
             {
                 for(int i = 0; i < droppedFiles.count; i++)
@@ -132,39 +134,7 @@ int main(void)
                         
                         memoryBlocks[blocksAssigned] = SetMemoryBlock(memoryBlocks[blocksAssigned],baseMemoryRect,programMemory,filePtr);
                         
-                        Rectangle memoryRect = memoryBlocks[blocksAssigned].rect;
-                        
-                        int32 middleBlock = memoryRect.x + (memoryRect.width / 2);
-                        
-                        // cache text position
-                        if(memoryBlocks[blocksAssigned].stringWidth < memoryRect.width)
-                        {
-                            memoryBlocks[blocksAssigned].stringPos = SetPos(middleBlock - (memoryBlocks[blocksAssigned].stringWidth / 2), memoryRect.y + (memoryRect.height / 2));
-                        }
-                        else
-                        {
-                            real32 textOffset = 40.0;
-                            real32 memoryTextY = memoryRect.y - textOffset; 
-                            //render a rect here pointing to the middle of the block
-                            
-                            memoryBlocks[blocksAssigned].stringPos = SetPos(middleBlock - (memoryBlocks[blocksAssigned].stringWidth / 2) , memoryTextY);
-                            
-                            if(blocksAssigned > 0)
-                            {
-                                memoryBlock curStringBlock = memoryBlocks[blocksAssigned];
-                                memoryBlock lastStringBlock = memoryBlocks[blocksAssigned - 1];
-                                
-                                //TODO: collides with text rendered in middle of memory block 
-                                if(lastStringBlock.stringPos.x  > curStringBlock.stringPos.x ||
-                                   lastStringBlock.stringPos.x + lastStringBlock.stringWidth > curStringBlock.stringPos.x &&
-                                   lastStringBlock.stringPos.x + lastStringBlock.stringWidth < 
-                                   curStringBlock.stringPos.x + curStringBlock.stringWidth)
-                                {
-                                    
-                                    memoryBlocks[blocksAssigned].stringPos = SetPos(middleBlock - (curStringBlock.stringWidth / 2) ,  (lastStringBlock.rect.y - textOffset - 24));
-                                }
-                            }
-                        }
+                        SetDroppedFiles(memoryBlocks, blocksAssigned);
                         
                         blocksAssigned++;
                         
@@ -219,7 +189,7 @@ int main(void)
         BeginDrawing();
         ClearBackground(BLACK);
         
-        char textBuffer[20];
+        char textBuffer[24];
         
         if(!programData.hasMemAllocated)
         {
@@ -249,7 +219,6 @@ int main(void)
             
             DrawRectangleRec(sliderBarRect,WHITE);
             
-            
             (!isMouseHeldDown) ? DrawRectangleRec(sliderRect, BLUE) : DrawRectangleRec(sliderRect, DARKBLUE);
             
         }else // IF MEMORY ALLOCATED
@@ -257,57 +226,34 @@ int main(void)
             DrawRectangleRec(baseMemoryRect,BLUE);
             
             //NOTE: cache text here
-            char* totalMemory = IntToChar(textBuffer, ToMegabytes(programMemory.Size), "Megabytes");
-            int32 textWidth = MeasureTextEx(GetFontDefault(), totalMemory, 30, 1).x;
+            real32 totalMemoryLeft = (real32)ToMegabytes((real32)programMemory.Size - (real32)programMemory.Used);
+            int32 totalKiloytesLeft = ToKilobytes(programMemory.Size - programMemory.Used);
             
-            DrawText(totalMemory,baseMemoryRect.width / 2 + (textWidth / 2),baseMemoryRect.y - baseMemoryRect.height * 1.5f,30,WHITE);
+            char* totalMemoryText = FloatToChar(textBuffer, totalMemoryLeft, "Megabytes", 2);
+            
+            if(totalMemoryLeft < 1)
+            {
+                // convert to kilobytes
+                totalMemoryLeft = (real32)ToKilobytes((real32)programMemory.Size - (real32)programMemory.Used);
+                
+                totalMemoryText = IntToChar(textBuffer, (int32)totalMemoryLeft, "Kilobytes"); 
+            }
+            
+            int32 textWidth = MeasureTextEx(GetFontDefault(), totalMemoryText, 30, 1).x;
+            
+            DrawText(totalMemoryText,baseMemoryRect.width / 2 + (textWidth / 2),baseMemoryRect.y - baseMemoryRect.height * 1.5f,30,WHITE);
+            
+            //mouse input for memoryBlocks
             
             for(int i = 0; i < blocksAssigned; i++)
             {
+                MemoryblocksMouseIO(i, memoryBlocks,mousePos, &programData);
                 Rectangle memoryRect = memoryBlocks[i].rect;
-                
-                // colliding with a memory rect
-                if (CheckCollisionPointRec(mousePos, memoryRect) && memoryRect.width > 5)
-                {
-                    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
-                    {
-                        // reset last block to original color
-                        if(programData.selectedBlock != NULL)
-                        {
-                            programData.selectedBlock->color = programData.blockLastColor; 
-                        }
-                        
-                        programData.selectedBlock = &memoryBlocks[i]; 
-                        programData.blockLastColor = memoryBlocks[i].color;
-                        memoryBlocks[i].color = GRAY;
-                        
-                        // get file entension and load image/audio
-                        fileData* memoryData = memoryBlocks[i].data;
-                        
-                        // Actions for each filetype
-                        if(CheckIfExtension((char*)supportedImageFiles,ArrayCount(supportedImageFiles), memoryData->extension))
-                        {
-                            programData.globalTex = LoadImageFrmMemory(memoryData,programData); 
-                        }
-                        
-                        if(CheckIfExtension((char*)supportedAudioFiles,ArrayCount(supportedAudioFiles), memoryData->extension))
-                        {
-                            if(programData.globalSound.frameCount > 0)
-                            {
-                                StopSound(programData.globalSound);
-                            }
-                            
-                            programData.globalSound = LoadSoundFromMemory(memoryData,programData);
-                            PlaySound(programData.globalSound);
-                        }
-                    }
-                }
                 
                 // Draw each memory block
                 DrawRectangleRec(memoryRect,memoryBlocks[i].color);
                 
                 int32 middleBlock = memoryRect.x + (memoryRect.width / 2);
-                
                 Vector2 memStringPos = memoryBlocks[i].stringPos;
                 
                 if(memoryBlocks[i].stringWidth < memoryRect.width)
@@ -326,8 +272,6 @@ int main(void)
                 
                 if(programData.globalTex.id > 0)
                 {
-                    //NOTE: have proper image scaling
-                    
                     Rectangle testRect = {baseMemoryRect.x + (baseMemoryRect.width / 2) - 200,baseMemoryRect.y + baseMemoryRect.height, 400,   programData.screenHeight - (baseMemoryRect.y + baseMemoryRect.height) };
                     
                     real32 scale = ShinkToFitBounds(programData.globalTex,testRect);
