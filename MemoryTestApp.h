@@ -171,8 +171,8 @@ internal Color GetRandomColor()
     uint32 randomNum = rand()/255;
     uint32 randomNum1 = rand()/255;
     uint32 randomNum2 = rand()/255;
-    
     Color blockColor = {randomNum,randomNum1,randomNum2, 255};
+    
     return blockColor;
 }
 
@@ -181,7 +181,6 @@ internal real32 ShinkToFitBounds(Texture2D texture, Rectangle rect)
     //width height
     real32 scaleFactorX = rect.width / texture.width;
     real32 scaleFactorY = rect.height / texture.height;
-    
     float minimumNewSizeRatio = Min(scaleFactorX, scaleFactorY);
     
     return minimumNewSizeRatio;
@@ -194,7 +193,8 @@ internal inline Rectangle SetMemoryBlockPos(Rectangle baseMemoryRect, memory_are
     //calculate position based on memory
     
     real32 oldRange = (real32)programMemory.Size;
-    real32 newRange = (real32)(baseMemoryRect.width - baseMemoryRect.x);
+    
+    real32 newRange = (real32)baseMemoryRect.width;
     Result.height = baseMemoryRect.height / 1.1;
     
     Result.y = baseMemoryRect.y + (baseMemoryRect.height / 16);
@@ -203,6 +203,25 @@ internal inline Rectangle SetMemoryBlockPos(Rectangle baseMemoryRect, memory_are
     Result.width = ((real32)programMemory.Used * newRange / oldRange + baseMemoryRect.x) - Result.x; 
     
     return Result;
+}
+
+internal memoryBlock SetMemoryBlock(memoryBlock block,Rectangle baseMemoryRect,memory_arena programMemory, fileData* filePtr)
+{
+    memoryBlock resultBlock = {};
+    resultBlock.data = filePtr; 
+    
+    int32 beforeMemory = programMemory.Used - filePtr->size;
+    resultBlock.rect = SetMemoryBlockPos(baseMemoryRect,programMemory, beforeMemory);
+    
+    srand(programMemory.Used);
+    resultBlock.color = GetRandomColor();
+    
+    strcpy_s(resultBlock.string,EnumToChar(resultBlock.data));
+    
+    //NOTE: maybe standardise string sizes
+    resultBlock.stringWidth = GetTextWidth(resultBlock.string,20);
+    
+    return resultBlock;
 }
 
 internal Sound LoadSoundFromMemory(fileData* data, programState* programData)
@@ -310,25 +329,6 @@ internal void MemoryblocksMouseIO(uint32 index, memoryBlock* memoryBlocks, Vecto
             }
         }
     }
-}
-
-internal memoryBlock SetMemoryBlock(memoryBlock block,Rectangle baseMemoryRect,memory_arena programMemory, fileData* filePtr)
-{
-    memoryBlock resultBlock = {};
-    resultBlock.data = filePtr; 
-    
-    int32 beforeMemory = programMemory.Used - filePtr->size;
-    resultBlock.rect = SetMemoryBlockPos(baseMemoryRect,programMemory, beforeMemory);
-    
-    srand(programMemory.Used);
-    resultBlock.color = GetRandomColor();
-    
-    strcpy_s(resultBlock.string,EnumToChar(resultBlock.data));
-    
-    //NOTE: maybe standardise string sizes
-    resultBlock.stringWidth = GetTextWidth(resultBlock.string,20);
-    
-    return resultBlock;
 }
 
 internal fileData* LoadFileIntoMemory(memory_arena& programMemory, char* filename)
