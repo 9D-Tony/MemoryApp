@@ -1,26 +1,7 @@
 #ifndef WIN32_PLATFORM
 #define WIN32_PLATFORM
 
-#define internal static // for funtions
-#define local_persist static // for variables in a local scope
-#define global_variable static // for global variables
-
-typedef uint8_t uint8;
-typedef uint16_t uint16;
-typedef uint32_t uint32;
-typedef uint64_t uint64;
-typedef int32_t bool32;
-
-typedef size_t memory_index;
-
-typedef int8_t int8;
-typedef int16_t int16;
-typedef int32_t int32;
-typedef int64_t int64;
-
-typedef float real32;
-typedef double real64;
-
+// Code for windows functions
 // (TODO): change to better name
 struct fileInfo 
 {

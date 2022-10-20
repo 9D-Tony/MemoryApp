@@ -1,51 +1,67 @@
 #include <iostream>
 #include <assert.h>
 
-#define SUPPORT_FILEFORMAT_FLAC
+#define internal static // for funtions
+#define local_persist static // for variables in a local scope
+#define global_variable static // for global variables
+
+typedef uint8_t uint8;
+typedef uint16_t uint16;
+typedef uint32_t uint32;
+typedef uint64_t uint64;
+typedef int32_t bool32;
+
+typedef size_t memory_index;
+
+typedef int8_t int8;
+typedef int16_t int16;
+typedef int32_t int32;
+typedef int64_t int64;
+
+typedef float real32;
 
 #include "include/raylib.h"
 //defines so no errors from raylib when including windows.h
-#if defined(WIN32) || defined(_WIN32) && !defined(__GNUC__)      
-#define NOGDICAPMASKS     // CC_*, LC_*, PC_*, CP_*, TC_*, RC_
-#define NOVIRTUALKEYCODES // VK_*
-#define NOWINMESSAGES     // WM_*, EM_*, LB_*, CB_*
-#define NOWINSTYLES       // WS_*, CS_*, ES_*, LBS_*, SBS_*, CBS_*
-#define NOSYSMETRICS      // SM_*
-#define NOMENUS           // MF_*
-#define NOICONS           // IDI_*
-#define NOKEYSTATES       // MK_*
-#define NOSYSCOMMANDS     // SC_*
-#define NORASTEROPS       // Binary and Tertiary raster ops
-#define NOSHOWWINDOW      // SW_*
-#define OEMRESOURCE       // OEM Resource values
-#define NOATOM            // Atom Manager routines
-#define NOCLIPBOARD       // Clipboard routines
-#define NOCOLOR           // Screen colors
-#define NOCTLMGR          // Control and Dialog routines
-#define NODRAWTEXT        // DrawText() and DT_*
+#if defined(WIN32) || defined(_WIN32) && !defined(__GNUC__)  
+
+
+#define WIN32_LEAN_AND_MEAN
+//#define NOGDICAPMASKS     // CC_*, LC_*, PC_*, CP_*, TC_*, RC_
+//#define NOVIRTUALKEYCODES // VK_*
+//#define NOWINMESSAGES     // WM_*, EM_*, LB_*, CB_*
+//#define NOWINSTYLES       // WS_*, CS_*, ES_*, LBS_*, SBS_*, CBS_*
+//#define NOSYSMETRICS      // SM_*
+//#define NOMENUS           // MF_*
+//#define NOICONS           // IDI_*
+//#define NOKEYSTATES       // MK_*
+//#define NOSYSCOMMANDS     // SC_*
+//#define NORASTEROPS       // Binary and Tertiary raster ops
+//#define NOSHOWWINDOW      // SW_*
+//#define OEMRESOURCE       // OEM Resource values
+//#define NOATOM            // Atom Manager routines
+//#define NOCLIPBOARD       // Clipboard routines
+//#define NOCOLOR           // Screen colors
+//#define NOCTLMGR          // Control and Dialog routines
+//#define NODRAWTEXT        // DrawText() and DT_*
 #define NOGDI             // All GDI defines and routines
-#define NOKERNEL          // All KERNEL defines and routines
+//#define NOKERNEL          // All KERNEL defines and routines
 #define NOUSER            // All USER defines and routines
 /*#define NONLS             // All NLS defines and routines*/
-#define NOMB              // MB_* and MessageBox()
-#define NOMEMMGR          // GMEM_*, LMEM_*, GHND, LHND, associated routines
-#define NOMETAFILE        // typedef METAFILEPICT
-#define NOMINMAX          // Macros min(a,b) and max(a,b)
-#define NOMSG             // typedef MSG and associated routines
-#define NOOPENFILE        // OpenFile(), OemToAnsi, AnsiToOem, and OF_*
-#define NOSCROLL          // SB_* and scrolling routines
-#define NOSERVICE         // All Service Controller routines, SERVICE_ equates, etc.
-#define NOSOUND           // Sound driver routines
+//#define NOMB              // MB_* and MessageBox()
+//#define NOMEMMGR          // GMEM_*, LMEM_*, GHND, LHND, associated routines
+//#define NOMETAFILE        // typedef METAFILEPICT
+//#define NOMINMAX          // Macros min(a,b) and max(a,b)
+//#define NOMSG             // typedef MSG and associated routines
+//#define NOOPENFILE        // OpenFile(), OemToAnsi, AnsiToOem, and OF_*
+//#define NOSCROLL          // SB_* and scrolling routines
+//#define NOSERVICE         // All Service Controller routines, SERVICE_ equates, etc.
+//#define NOSOUND           // Sound driver routines
 #define MMNOSOUND         // PlaySound(A) ect
-#define NOTEXTMETRIC      // typedef TEXTMETRIC and associated routines
-#define NOWH              // SetWindowsHook and WH_*
-#define NOWINOFFSETS      // GWL_*, GCL_*, associated routines
-#define NOCOMM            // COMM driver routines
-#define NOKANJI           // Kanji support stuff.
-#define NOHELP            // Help engine interface.
-#define NOPROFILER        // Profiler interface.
-#define NODEFERWINDOWPOS  // DeferWindowPos routines
-#define NOMCX         // All USER defines and routines
+//#define NOTEXTMETRIC      // typedef TEXTMETRIC and associated routines
+//#define NOWH              // SetWindowsHook and WH_*
+//#define NOWINOFFSETS      // GWL_*, GCL_*, associated routines
+//#define NOCOMM            // COMM driver routines
+
 
 #include <windows.h>
 #include "win32.cpp"
@@ -61,14 +77,9 @@
 #define ArrayCount(a) (sizeof(a) / sizeof(*a))
 #define MapRange(oldMin,oldMax,newMin,newMax,value) (newMin + (value-oldMin)*(newMax-newMin)/(oldMax-oldMin))
 
-#define ToKilobytes(Value) ((Value) / 1024)
-#define ToMegabytes(Value) (ToKilobytes(Value) / 1024)
-#define Min(X, Y) (((X) < (Y)) ? (X) : (Y))
 
+#include "Math.h"
 #include "MemoryTestApp.h"
-
-#define MAX_MEMORY Megabytes(10)
-#define MIN_MEMORY Kilobytes(500)
 
 int main(void)
 {
@@ -79,9 +90,9 @@ int main(void)
     SetTraceLogLevel(LOG_NONE);
     
     programState programData = SetProgramState(screenWidth,screenHeight, 60,GetSystemPageSize());
-    
     InitWindow(programData.screenWidth, programData.screenHeight, "Memory Test");
     
+    programData.defaultFont = GetFontDefault();
     InitAudioDevice();
     
     SetTargetFPS(programData.FPSTarget);
@@ -92,12 +103,13 @@ int main(void)
     Rectangle allocateRect  = {screenWidth / 2 - 60 ,screenHeight / 2 - 180,180,60};
     Rectangle sliderBarRect = {screenWidth / 2 - 350 ,screenHeight / 2 - 250,800,20};
     Rectangle sliderRect = {screenWidth / 2 ,sliderBarRect.y - 32,20,80};
-    
+    Rectangle clearButtonPos = {0,0,0,0};
     uint32 blocksAssigned = 0;
     memoryBlock memoryBlocks[126] = {};
     Vector2 mousePos = { 0.0f, 0.0f };
     
     memory_arena programMemory = {};
+    Font font = programData.defaultFont;
     fileData* tempFile = {};
     bool32 isMouseHeldDown = false;
     
@@ -137,9 +149,6 @@ int main(void)
                         SetDroppedFiles(memoryBlocks, blocksAssigned);
                         
                         blocksAssigned++;
-                        
-                        printf("programData size: %d\n", programMemory.Size);
-                        printf("programData total used: %d\n", programMemory.Used);
                     }
                 }
             }
@@ -155,9 +164,6 @@ int main(void)
                 {
                     programData.hasMemAllocated = true;
                     AllocateBaseMemory(programData,&programMemory, programData.sliderValue);
-                    
-                    printf("programData size: %d\n", programMemory.Size);
-                    printf("programData total used: %d\n", programMemory.Used);
                 }
             }
             
@@ -183,6 +189,8 @@ int main(void)
                 
                 if(sliderRect.x < sliderBarRect.x) sliderRect.x = sliderBarRect.x + 0.1f;
             }
+            
+            
         }
         
         //DRAWING
@@ -193,8 +201,9 @@ int main(void)
         
         if(!programData.hasMemAllocated)
         {
+            
             DrawRectangleRec(allocateRect ,RED);
-            DrawText("Alloc memory",allocateRect.x  + (allocateRect.width / 20),allocateRect.y + (allocateRect.height / 4),25, WHITE);
+            DrawText("Alloc memory",allocateRect.x  + (allocateRect.width / 20),allocateRect.y + (allocateRect.height / 4),buttonTxtSize,WHITE);
             
             programData.sliderValue = ToPageSize(MapRange(sliderBarRect.x,sliderBarRect.x + sliderBarRect.width,MIN_MEMORY,MAX_MEMORY,sliderRect.x), programData.pageSize);
             
@@ -204,17 +213,13 @@ int main(void)
             if(programData.sliderValue < Megabytes(1))
             {
                 sliderText = IntToChar(textBuffer,ToKilobytes(programData.sliderValue), "Kilobytes");
-                sliderTextWidth = GetTextWidth(sliderText, 30);
-                
-                DrawText(sliderText,sliderBarRect.x + (sliderBarRect.width / 2)  - (sliderTextWidth / 2), sliderBarRect.y - 80, 30, WHITE);
-                
+                sliderTextWidth = GetTextWidth(sliderText, titleSize);
+                DrawText(sliderText,sliderBarRect.x + (sliderBarRect.width / 2)  - (sliderTextWidth / 2), sliderBarRect.y - 80, titleSize, WHITE);
             }else
             {
                 sliderText = IntToChar(textBuffer,ToMegabytes(programData.sliderValue), "Megabytes");
-                
-                sliderTextWidth = GetTextWidth(sliderText, 30);
-                
-                DrawText(sliderText,sliderBarRect.x + (sliderBarRect.width / 2) - (sliderTextWidth / 2), sliderBarRect.y - 80, 30, WHITE);
+                sliderTextWidth = GetTextWidth(sliderText, titleSize);
+                DrawText(sliderText,sliderBarRect.x + (sliderBarRect.width / 2) - (sliderTextWidth / 2), sliderBarRect.y - 80, titleSize, WHITE);
             }
             
             DrawRectangleRec(sliderBarRect,WHITE);
@@ -223,28 +228,71 @@ int main(void)
             
         }else // IF MEMORY ALLOCATED
         {
+            if(clearButtonPos.width > 0)
+            {
+                if(CheckCollisionPointRec(mousePos, clearButtonPos))
+                {
+                    if (IsMouseButtonDown(MOUSE_BUTTON_LEFT))
+                    {
+                        // clear memory
+                        for(int i = 0 ; i < blocksAssigned; i++)
+                        {
+                            int32 fileSize = memoryBlocks[i].data->size;
+                            int32 memTypeSize = sizeof(fileData);
+                            
+                            if(programData.globalTex.id > 0)
+                            {
+                                Texture defaultTexture = {};
+                                UnloadTexture(programData.globalTex);
+                                programData.globalTex = defaultTexture;
+                            }
+                            
+                            
+                            memset(memoryBlocks[i].data, 0, fileSize);
+                            
+                            
+                            if(programData.globalSound.frameCount > 0)
+                            {
+                                StopSound(programData.globalSound);
+                                UnloadSound(programData.globalSound);
+                                Sound emptySound = {};
+                                programData.globalSound = emptySound;
+                            }
+                            
+                            
+                            memoryBlocks[i] = {};
+                        }
+                        
+                        programMemory.Used = 0;
+                        blocksAssigned = 0;
+                    }
+                }
+            }
+            
             DrawRectangleRec(baseMemoryRect,BLUE);
             
             //NOTE: cache text here
             real32 totalMemoryLeft = (real32)ToMegabytes((real32)programMemory.Size - (real32)programMemory.Used);
             int32 totalKiloytesLeft = ToKilobytes(programMemory.Size - programMemory.Used);
             
-            char* totalMemoryText = FloatToChar(textBuffer, totalMemoryLeft, "Megabytes", 2);
+            char* totalMemoryText = FloatToChar(textBuffer, totalMemoryLeft, "MB", 2);
             
             if(totalMemoryLeft < 1)
             {
                 // convert to kilobytes
                 totalMemoryLeft = (real32)ToKilobytes((real32)programMemory.Size - (real32)programMemory.Used);
-                
-                totalMemoryText = IntToChar(textBuffer, (int32)totalMemoryLeft, "Kilobytes"); 
+                totalMemoryText = IntToChar(textBuffer, (int32)totalMemoryLeft, "KB"); 
             }
             
-            int32 textWidth = MeasureTextEx(GetFontDefault(), totalMemoryText, 30, 1).x;
+            int32 textWidth = MeasureTextEx(font, totalMemoryText, titleSize, 1).x;
+            int32 memLeftTxtWidth = MeasureTextEx(font,"Memory Left", titleSize, 1).x;
             
-            DrawText(totalMemoryText,baseMemoryRect.width / 2 + (textWidth / 2),baseMemoryRect.y - baseMemoryRect.height * 1.5f,30,WHITE);
+            DrawText(totalMemoryText,GetRectCenter(baseMemoryRect).x - (textWidth / 2),baseMemoryRect.y - baseMemoryRect.height * 1.5f,titleSize,WHITE);
+            
+            DrawText("Memory Left",GetRectCenter(baseMemoryRect).x - (memLeftTxtWidth / 2),baseMemoryRect.y - baseMemoryRect.height * 1.85f,titleSize,WHITE);
+            
             
             //mouse input for memoryBlocks
-            
             for(int i = 0; i < blocksAssigned; i++)
             {
                 MemoryblocksMouseIO(i, memoryBlocks,mousePos, &programData);
@@ -259,7 +307,7 @@ int main(void)
                 if(memoryBlocks[i].stringWidth < memoryRect.width)
                 {
                     //If text can fit in memory block render it in the middle of the block
-                    DrawText(memoryBlocks[i].string,memStringPos.x,memStringPos.y,20,WHITE);
+                    DrawTextEx(font,memoryBlocks[i].string,memStringPos,blockTxtSize,1,WHITE);
                 }else
                 {
                     // check if the memory block string is colliding and move it up if it is.
@@ -267,7 +315,7 @@ int main(void)
                     Rectangle memoryTextLine = {middleBlock,memoryRect.y - 20, 2,20};
                     
                     DrawRectangleRec(memoryTextLine,WHITE);
-                    DrawText(memoryBlocks[i].string,memStringPos.x,memStringPos.y,20,WHITE);
+                    DrawTextEx(font,memoryBlocks[i].string,memStringPos,blockTxtSize,1,WHITE);
                 }
                 
                 if(programData.globalTex.id > 0)
@@ -275,13 +323,17 @@ int main(void)
                     Rectangle testRect = {baseMemoryRect.x + (baseMemoryRect.width / 2) - 200,baseMemoryRect.y + baseMemoryRect.height, 400,   programData.screenHeight - (baseMemoryRect.y + baseMemoryRect.height) };
                     
                     real32 scale = ShinkToFitBounds(programData.globalTex,testRect);
-                    
                     Vector2 texturePos = SetTextureAtCenter(baseMemoryRect,programData.globalTex,scale);
-                    
                     texturePos.y += (baseMemoryRect.height / 2) + (programData.globalTex.height * scale) / 2;
-                    
                     DrawTextureEx(programData.globalTex,texturePos,0,scale,WHITE);
                 }
+            }
+            
+            if(programMemory.Used > 0)
+            {
+                Vector2 baseMemoryCenter = GetRectCenter(baseMemoryRect);
+                clearButtonPos = SetRect((baseMemoryCenter.x - 80.0f),baseMemoryCenter.y + 200,160,80); 
+                DrawButton(clearButtonPos,"Clear Memory ",blockTxtSize,DARKBLUE);
             }
         }
         
@@ -292,6 +344,6 @@ int main(void)
     CloseAudioDevice();
     CloseWindow();
     
-    FreeBase(programData);
+    FreeBase(programData.memoryBase);
     return 0;
 }

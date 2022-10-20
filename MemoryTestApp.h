@@ -1,36 +1,7 @@
-#ifndef MEMORY_TEST_APP
-#define MEMORY_TEST_APP
-
-enum FILETYPE 
-{
-    AUDIO,
-    IMAGE,
-    TEXT,
-    OTHER
-};
-
-struct fileData
-{
-    // files that are not images / audio
-    int32 size;
-    char extension[12];
-    FILETYPE type;
-    uint8* baseData;
-};
+#include "Memory.h"
+#include "Memory.cpp"
 
 // Memory blocks are the assigned blocks that go within the baseMemoryRect.
-struct memoryBlock
-{
-    Color color;
-    bool32 selected;
-    char string[20];
-    real32 stringWidth;
-    Vector2 stringPos;
-    Rectangle stringLine;
-    Rectangle rect; // rectangle that visually represents it
-    fileData* data; // the data
-};
-
 struct programState {
     char windowName[64];
     int32 FPSTarget;
@@ -46,21 +17,21 @@ struct programState {
     Color blockLastColor;
     Texture2D globalTex;
     Sound globalSound;
-    
+    Font defaultFont;
     bool32 hasMemAllocated;
+    
     void* memoryBase;
 };
 
-struct memory_arena
-{
-	memory_index Size;
-	uint8* Base;
-	memory_index Used;
-};
 
 char supportedTxtFiles[5][8] = { ".txt", ".blah"};
 char supportedAudioFiles[5][8] = { ".wav",".mp3",".ogg"}; // have to rebuild for flac support
 char supportedImageFiles[6][8] = { ".gif", ".png", ".jpg", ".JPG", ".PNG",".GIF"};
+
+// standard text sizes
+#define titleSize 30
+#define buttonTxtSize 25
+#define blockTxtSize 20
 
 internal void AllocateBaseMemory(programState& data, memory_arena *arena, int32 memSize)
 {
@@ -76,29 +47,9 @@ internal void AllocateBaseMemory(programState& data, memory_arena *arena, int32 
     data.totalUsed = 0;
 }
 
-internal
-void Copy(void* source,uint32 size, void* destination)
+internal Rectangle SetRect(real32 x,real32 y,real32 width,real32 height)
 {
-	uint8 *start = (uint8*)source;
-	uint8 *dest = (uint8*)destination;
-    
-	while (size--)
-	{
-		*start++ = *dest++;
-	}
-}
-
-internal Vector2 SetPos(real32 x, real32 y)
-{
-    Vector2 resultPos = {x,y};
-    return resultPos;
-}
-
-internal inline Vector2 SetTextureAtCenter(Rectangle base,Texture2D centered, real32 scale = 1.0f)
-{
-    Vector2 texturePos = {base.x + base.width / 2 - (centered.width * scale) / 2 ,base.y + (base.height / 2) - (centered.height * scale) / 2};
-    
-    return texturePos;
+    return Rectangle {x,y,width,height};
 }
 
 internal programState SetProgramState(int32 screenWidth, int32 screenHeight, int32 FPSTarget, int32 pageSize)
@@ -111,16 +62,6 @@ internal programState SetProgramState(int32 screenWidth, int32 screenHeight, int
     programStateResult.sliderValue = 0;
     programStateResult. pageSize = pageSize;
     return (programStateResult);
-}
-
-#define pushStruct(Arena, type) (type *)pushSize_(Arena,sizeof(type))
-#define pushArray(Arena, Count, type) (type *)pushSize_(Arena,(Count) * sizeof(type))
-void* pushSize_(memory_arena *Arena, memory_index size) // the size can be a type then we get the size of the type to push
-{
-	assert(Arena->Used + size < Arena->Size);
-	void *Result = Arena->Base + Arena->Used;
-	Arena->Used += size;
-	return (Result);
 }
 
 inline const char* EnumToChar(fileData* fileStruct)
@@ -149,42 +90,11 @@ inline const char* EnumToChar(fileData* fileStruct)
     }
 }
 
-internal real32 GetTextWidth(char* string, uint32 fontSize)
+internal real32 GetTextWidth(char* string, real32 fontSize)
 {
     return MeasureTextEx(GetFontDefault(),string,fontSize,1).x;
 }
 
-internal inline uint32 ToPageSize(uint32 input, uint32 pageSize)
-{
-    uint32 remainder = input % pageSize;
-    return input - remainder;
-}
-
-internal void arena_align(memory_arena *arena, memory_index boundary)
-{
-	memory_index p =(arena->Used + (boundary - 1));
-	arena->Used = p - p % boundary;
-}
-
-internal Color GetRandomColor()
-{
-    uint32 randomNum = rand()/255;
-    uint32 randomNum1 = rand()/255;
-    uint32 randomNum2 = rand()/255;
-    Color blockColor = {randomNum,randomNum1,randomNum2, 255};
-    
-    return blockColor;
-}
-
-internal real32 ShinkToFitBounds(Texture2D texture, Rectangle rect)
-{
-    //width height
-    real32 scaleFactorX = rect.width / texture.width;
-    real32 scaleFactorY = rect.height / texture.height;
-    float minimumNewSizeRatio = Min(scaleFactorX, scaleFactorY);
-    
-    return minimumNewSizeRatio;
-}
 
 internal inline Rectangle SetMemoryBlockPos(Rectangle baseMemoryRect, memory_arena& programMemory, uint32 beforeUsedMemory)
 {
@@ -195,7 +105,7 @@ internal inline Rectangle SetMemoryBlockPos(Rectangle baseMemoryRect, memory_are
     real32 oldRange = (real32)programMemory.Size;
     
     real32 newRange = (real32)baseMemoryRect.width;
-    Result.height = baseMemoryRect.height / 1.1;
+    Result.height = baseMemoryRect.height / 1.1f;
     
     Result.y = baseMemoryRect.y + (baseMemoryRect.height / 16);
     Result.x = beforeUsedMemory * newRange / oldRange + baseMemoryRect.x;
@@ -203,6 +113,16 @@ internal inline Rectangle SetMemoryBlockPos(Rectangle baseMemoryRect, memory_are
     Result.width = ((real32)programMemory.Used * newRange / oldRange + baseMemoryRect.x) - Result.x; 
     
     return Result;
+}
+
+internal void DrawButton(Rectangle buttonRect, const char* text,int32 textSize, Color color)
+{
+    //Draw a rectangle with text in the middle.
+    DrawRectangleRec(buttonRect,color);
+    Vector2 textDim =  MeasureTextEx(GetFontDefault() ,text, textSize, 1); 
+    
+    Vector2 textPos = GetRectCenter(buttonRect); 
+    DrawText(text, (int32)(textPos.x - (textDim.x / 2)), (int32)(textPos.y - (textDim.y / 2)), textSize, WHITE);
 }
 
 internal memoryBlock SetMemoryBlock(memoryBlock block,Rectangle baseMemoryRect,memory_arena programMemory, fileData* filePtr)
@@ -213,7 +133,7 @@ internal memoryBlock SetMemoryBlock(memoryBlock block,Rectangle baseMemoryRect,m
     int32 beforeMemory = programMemory.Used - filePtr->size;
     resultBlock.rect = SetMemoryBlockPos(baseMemoryRect,programMemory, beforeMemory);
     
-    srand(programMemory.Used);
+    srand((uint32)programMemory.Used);
     resultBlock.color = GetRandomColor();
     
     strcpy_s(resultBlock.string,EnumToChar(resultBlock.data));
@@ -240,7 +160,7 @@ internal Sound LoadSoundFromMemory(fileData* data, programState* programData)
     
     if(wave.frameCount == 0)
     {
-        printf("could not load file with extension: %f\n", data->extension);
+        printf("could not load file with extension: %s\n", data->extension);
         return sound;
     }
     
@@ -403,7 +323,7 @@ internal void SetDroppedFiles(memoryBlock* memoryBlocks,uint32 blocksAssigned)
     //get string width
     Rectangle memoryRect = memoryBlocks[blocksAssigned].rect;
     
-    int32 middleBlock = memoryRect.x + (memoryRect.width / 2);
+    int32 middleBlock = (int32)(memoryRect.x + (memoryRect.width / 2));
     
     // cache text position
     if(memoryBlocks[blocksAssigned].stringWidth < memoryRect.width)
@@ -436,12 +356,6 @@ internal void SetDroppedFiles(memoryBlock* memoryBlocks,uint32 blocksAssigned)
     }
 }
 
-internal inline uint32 numDigits(const uint32 n) 
-{
-    if (n < 10) return 1;
-    return 1 + numDigits(n / 10);
-}
-
 internal char* IntToChar(char* buffer, int32 input,const char* extraString)
 {
     //NOTE: sprintf is slow find better way
@@ -463,19 +377,3 @@ internal char* FloatToChar(char* buffer, real32 input, const char* extraString, 
     sprintf_s(buffer,totalDigits + extraLength + 2 + (precision + totalDigits + 1), "%.2f %s", input, extraString);
     return buffer;
 }
-
-internal void ClearMemory(memory_arena *Arena, void *baseAddress, memory_index size)
-{
-    assert(size < Arena->Used);
-    ZeroMemory(baseAddress,size);
-    Arena->Used -= size;
-}
-
-internal void FreeBase(programState& data)
-{
-    Win32VirtualFree(data.memoryBase);
-    data.size = 0;
-    data.totalUsed = 0;
-}
-
-#endif
