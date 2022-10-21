@@ -89,13 +89,13 @@ int main(void)
     // stop raylib printing things
     SetTraceLogLevel(LOG_NONE);
     
-    programState programData = SetProgramState(screenWidth,screenHeight, 60,GetSystemPageSize());
-    InitWindow(programData.screenWidth, programData.screenHeight, "Memory Test");
+    programState pState = SetProgramState(screenWidth,screenHeight, 60,GetSystemPageSize());
+    InitWindow(pState.screenWidth, pState.screenHeight, "Memory Test");
     
-    programData.defaultFont = GetFontDefault();
+    pState.defaultFont = GetFontDefault();
     InitAudioDevice();
     
-    SetTargetFPS(programData.FPSTarget);
+    SetTargetFPS(pState.FPSTarget);
     FilePathList droppedFiles = { 0 };
     
     //Retangles
@@ -104,19 +104,19 @@ int main(void)
     Rectangle sliderBarRect = {screenWidth / 2 - 350 ,screenHeight / 2 - 250,800,20};
     Rectangle sliderRect = {screenWidth / 2 ,sliderBarRect.y - 32,20,80};
     Rectangle clearButtonPos = {0,0,0,0};
+    
     uint32 blocksAssigned = 0;
     memoryBlock memoryBlocks[126] = {};
     Vector2 mousePos = { 0.0f, 0.0f };
     
     memory_arena programMemory = {};
-    Font font = programData.defaultFont;
+    Font font = pState.defaultFont;
     fileData* tempFile = {};
     bool32 isMouseHeldDown = false;
     
     while (!WindowShouldClose()) 
     {
-        (!IsWindowFocused()) ? SetTargetFPS(30) : SetTargetFPS(programData.FPSTarget);
-        
+        (!IsWindowFocused()) ? SetTargetFPS(30) : SetTargetFPS(pState.FPSTarget);
         mousePos = GetMousePosition();
         
         if(IsFileDropped())
@@ -156,14 +156,14 @@ int main(void)
         
         //NOTE: don't like AllocateButton collision check
         //Allocate rect collision
-        if(!programData.hasMemAllocated)
+        if(!pState.hasMemAllocated)
         {
-            if (CheckCollisionPointRec(mousePos, allocateRect) && !programData.hasMemAllocated)
+            if (CheckCollisionPointRec(mousePos, allocateRect) && !pState.hasMemAllocated)
             {
                 if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
                 {
-                    programData.hasMemAllocated = true;
-                    AllocateBaseMemory(programData,&programMemory, programData.sliderValue);
+                    pState.hasMemAllocated = true;
+                    AllocateBaseMemory(pState,&programMemory, pState.sliderValue);
                 }
             }
             
@@ -189,8 +189,6 @@ int main(void)
                 
                 if(sliderRect.x < sliderBarRect.x) sliderRect.x = sliderBarRect.x + 0.1f;
             }
-            
-            
         }
         
         //DRAWING
@@ -199,25 +197,26 @@ int main(void)
         
         char textBuffer[24];
         
-        if(!programData.hasMemAllocated)
+        //Maybe a layed / screen system for drawing and logic
+        if(!pState.hasMemAllocated)
         {
             
             DrawRectangleRec(allocateRect ,RED);
             DrawText("Alloc memory",allocateRect.x  + (allocateRect.width / 20),allocateRect.y + (allocateRect.height / 4),buttonTxtSize,WHITE);
             
-            programData.sliderValue = ToPageSize(MapRange(sliderBarRect.x,sliderBarRect.x + sliderBarRect.width,MIN_MEMORY,MAX_MEMORY,sliderRect.x), programData.pageSize);
+            pState.sliderValue = ToPageSize(MapRange(sliderBarRect.x,sliderBarRect.x + sliderBarRect.width,MIN_MEMORY,MAX_MEMORY,sliderRect.x), pState.pageSize);
             
             char* sliderText = 0;
             int32 sliderTextWidth = 0;
             
-            if(programData.sliderValue < Megabytes(1))
+            if(pState.sliderValue < Megabytes(1))
             {
-                sliderText = IntToChar(textBuffer,ToKilobytes(programData.sliderValue), "Kilobytes");
+                sliderText = IntToChar(textBuffer,ToKilobytes(pState.sliderValue), "Kilobytes");
                 sliderTextWidth = GetTextWidth(sliderText, titleSize);
                 DrawText(sliderText,sliderBarRect.x + (sliderBarRect.width / 2)  - (sliderTextWidth / 2), sliderBarRect.y - 80, titleSize, WHITE);
             }else
             {
-                sliderText = IntToChar(textBuffer,ToMegabytes(programData.sliderValue), "Megabytes");
+                sliderText = IntToChar(textBuffer,ToMegabytes(pState.sliderValue), "Megabytes");
                 sliderTextWidth = GetTextWidth(sliderText, titleSize);
                 DrawText(sliderText,sliderBarRect.x + (sliderBarRect.width / 2) - (sliderTextWidth / 2), sliderBarRect.y - 80, titleSize, WHITE);
             }
@@ -228,6 +227,8 @@ int main(void)
             
         }else // IF MEMORY ALLOCATED
         {
+            // TODO: Clear all memory, should not be here in drawing
+            //---------------------------------------------------------
             if(clearButtonPos.width > 0)
             {
                 if(CheckCollisionPointRec(mousePos, clearButtonPos))
@@ -240,25 +241,22 @@ int main(void)
                             int32 fileSize = memoryBlocks[i].data->size;
                             int32 memTypeSize = sizeof(fileData);
                             
-                            if(programData.globalTex.id > 0)
+                            if(pState.globalTex.id > 0)
                             {
                                 Texture defaultTexture = {};
-                                UnloadTexture(programData.globalTex);
-                                programData.globalTex = defaultTexture;
+                                UnloadTexture(pState.globalTex);
+                                pState.globalTex = defaultTexture;
                             }
-                            
-                            
+                            // clear block data
                             memset(memoryBlocks[i].data, 0, fileSize);
                             
-                            
-                            if(programData.globalSound.frameCount > 0)
+                            if(pState.globalSound.frameCount > 0)
                             {
-                                StopSound(programData.globalSound);
-                                UnloadSound(programData.globalSound);
+                                StopSound(pState.globalSound);
+                                UnloadSound(pState.globalSound);
                                 Sound emptySound = {};
-                                programData.globalSound = emptySound;
+                                pState.globalSound = emptySound;
                             }
-                            
                             
                             memoryBlocks[i] = {};
                         }
@@ -268,6 +266,7 @@ int main(void)
                     }
                 }
             }
+            //---------------------------------------------------------
             
             DrawRectangleRec(baseMemoryRect,BLUE);
             
@@ -291,11 +290,17 @@ int main(void)
             
             DrawText("Memory Left",GetRectCenter(baseMemoryRect).x - (memLeftTxtWidth / 2),baseMemoryRect.y - baseMemoryRect.height * 1.85f,titleSize,WHITE);
             
+            if(programMemory.Used > 0)
+            {
+                Vector2 baseMemoryCenter = GetRectCenter(baseMemoryRect);
+                clearButtonPos = SetRect((baseMemoryCenter.x - 80.0f),baseMemoryCenter.y - baseMemoryRect.height - 20,160,50); 
+                DrawButton(clearButtonPos,"Clear Memory ",blockTxtSize,DARKBLUE);
+            }
             
             //mouse input for memoryBlocks
             for(int i = 0; i < blocksAssigned; i++)
             {
-                MemoryblocksMouseIO(i, memoryBlocks,mousePos, &programData);
+                MemoryblocksMouseIO(i, memoryBlocks,mousePos, &pState);
                 Rectangle memoryRect = memoryBlocks[i].rect;
                 
                 // Draw each memory block
@@ -311,39 +316,33 @@ int main(void)
                 }else
                 {
                     // check if the memory block string is colliding and move it up if it is.
-                    
                     Rectangle memoryTextLine = {middleBlock,memoryRect.y - 20, 2,20};
                     
                     DrawRectangleRec(memoryTextLine,WHITE);
                     DrawTextEx(font,memoryBlocks[i].string,memStringPos,blockTxtSize,1,WHITE);
                 }
                 
-                if(programData.globalTex.id > 0)
+                if(pState.globalTex.id > 0)
                 {
-                    Rectangle testRect = {baseMemoryRect.x + (baseMemoryRect.width / 2) - 200,baseMemoryRect.y + baseMemoryRect.height, 400,   programData.screenHeight - (baseMemoryRect.y + baseMemoryRect.height) };
+                    Rectangle testRect = {baseMemoryRect.x + (baseMemoryRect.width / 2) - 200,baseMemoryRect.y + baseMemoryRect.height, 400,   pState.screenHeight - (baseMemoryRect.y + baseMemoryRect.height) };
                     
-                    real32 scale = ShinkToFitBounds(programData.globalTex,testRect);
-                    Vector2 texturePos = SetTextureAtCenter(baseMemoryRect,programData.globalTex,scale);
-                    texturePos.y += (baseMemoryRect.height / 2) + (programData.globalTex.height * scale) / 2;
-                    DrawTextureEx(programData.globalTex,texturePos,0,scale,WHITE);
+                    real32 scale = ShinkToFitBounds(pState.globalTex,testRect);
+                    Vector2 texturePos = SetTextureAtCenter(baseMemoryRect,pState.globalTex,scale);
+                    texturePos.y += (baseMemoryRect.height / 2) + (pState.globalTex.height * scale) / 2;
+                    DrawTextureEx(pState.globalTex,texturePos,0,scale,WHITE);
                 }
             }
             
-            if(programMemory.Used > 0)
-            {
-                Vector2 baseMemoryCenter = GetRectCenter(baseMemoryRect);
-                clearButtonPos = SetRect((baseMemoryCenter.x - 80.0f),baseMemoryCenter.y + 200,160,80); 
-                DrawButton(clearButtonPos,"Clear Memory ",blockTxtSize,DARKBLUE);
-            }
+            
         }
         
         EndDrawing();
     }
     
-    UnloadSound(programData.globalSound);
+    UnloadSound(pState.globalSound);
     CloseAudioDevice();
     CloseWindow();
     
-    FreeBase(programData.memoryBase);
+    FreeBase(pState.memoryBase);
     return 0;
 }

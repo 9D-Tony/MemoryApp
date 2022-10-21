@@ -90,11 +90,18 @@ inline const char* EnumToChar(fileData* fileStruct)
     }
 }
 
+internal void StopAudio(programState* programData)
+{
+    if(programData->globalSound.frameCount > 0)
+    {
+        StopSound(programData->globalSound);
+    }
+}
+
 internal real32 GetTextWidth(char* string, real32 fontSize)
 {
     return MeasureTextEx(GetFontDefault(),string,fontSize,1).x;
 }
-
 
 internal inline Rectangle SetMemoryBlockPos(Rectangle baseMemoryRect, memory_arena& programMemory, uint32 beforeUsedMemory)
 {
@@ -209,6 +216,13 @@ internal inline bool32 CheckIfExtension(char* extensionArray,int32 arraySize, ch
     return false;
 }
 
+internal void ClearTexture(programState* programData)
+{
+    Texture texture = {};
+    UnloadTexture(programData->globalTex);
+    programData->globalTex = texture;
+}
+
 internal void MemoryblocksMouseIO(uint32 index, memoryBlock* memoryBlocks, Vector2 mousePos, programState* programData)
 {
     Rectangle memoryRect = memoryBlocks[index].rect;
@@ -234,17 +248,19 @@ internal void MemoryblocksMouseIO(uint32 index, memoryBlock* memoryBlocks, Vecto
             // Actions for each filetype
             if(CheckIfExtension((char*)supportedImageFiles,ArrayCount(supportedImageFiles), memoryData->extension))
             {
+                // stop audio if clicking on image
+                StopAudio(programData);
                 programData->globalTex = LoadImageFrmMemory(memoryData,programData); 
             }
             
             if(CheckIfExtension((char*)supportedAudioFiles,ArrayCount(supportedAudioFiles), memoryData->extension))
             {
-                if(programData->globalSound.frameCount > 0)
-                {
-                    StopSound(programData->globalSound);
-                }
+                ClearTexture(programData);
+                
+                StopAudio(programData);
                 
                 programData->globalSound = LoadSoundFromMemory(memoryData,programData);
+                
                 PlaySound(programData->globalSound);
             }
         }
@@ -325,7 +341,7 @@ internal void SetDroppedFiles(memoryBlock* memoryBlocks,uint32 blocksAssigned)
     
     int32 middleBlock = (int32)(memoryRect.x + (memoryRect.width / 2));
     
-    // cache text position
+    // if it can fit in the memory block
     if(memoryBlocks[blocksAssigned].stringWidth < memoryRect.width)
     {
         memoryBlocks[blocksAssigned].stringPos = SetPos(middleBlock - (memoryBlocks[blocksAssigned].stringWidth / 2), memoryRect.y + (memoryRect.height / 2));
@@ -342,6 +358,8 @@ internal void SetDroppedFiles(memoryBlock* memoryBlocks,uint32 blocksAssigned)
         {
             memoryBlock curStringBlock = memoryBlocks[blocksAssigned];
             memoryBlock lastStringBlock = memoryBlocks[blocksAssigned - 1];
+            real32 YDistance = curStringBlock.stringPos.y -  lastStringBlock.stringPos.y;
+            printf("Distance Y: %f \n", YDistance);
             
             //TODO: collides with text rendered in middle of memory block 
             if(lastStringBlock.stringPos.x  > curStringBlock.stringPos.x ||
@@ -349,7 +367,6 @@ internal void SetDroppedFiles(memoryBlock* memoryBlocks,uint32 blocksAssigned)
                lastStringBlock.stringPos.x + lastStringBlock.stringWidth < 
                curStringBlock.stringPos.x + curStringBlock.stringWidth)
             {
-                
                 memoryBlocks[blocksAssigned].stringPos = SetPos(middleBlock - (curStringBlock.stringWidth / 2) ,  (lastStringBlock.rect.y - textOffset - 24));
             }
         }
