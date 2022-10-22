@@ -29,7 +29,6 @@ struct programState {
     void* memoryBase;
 };
 
-
 char supportedTxtFiles[5][8] = { ".txt", ".blah"};
 char supportedAudioFiles[5][8] = { ".wav",".mp3",".ogg"}; // have to rebuild for flac support
 char supportedImageFiles[6][8] = { ".gif", ".png", ".jpg", ".JPG", ".PNG",".GIF"};
