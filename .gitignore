@@ -396,14 +396,9 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
-include/raylib.h
-include/raymath.h
-include/rlgl.h
 lib/raylib.dll
 lib/raylib.lib
-*.vcxproj
 *.filters
 *.lib
-*.sln
 *.rdbg
 TODO.txt

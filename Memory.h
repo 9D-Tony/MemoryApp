@@ -10,10 +10,10 @@
 
 enum FILETYPE 
 {
-    AUDIO,
-    IMAGE,
-    TEXT,
-    OTHER
+    F_AUDIO,
+    F_IMAGE,
+    F_TEXT,
+    F_OTHER
 };
 
 struct fileData

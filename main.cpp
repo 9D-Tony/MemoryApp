@@ -20,7 +20,10 @@ typedef int64_t int64;
 
 typedef float real32;
 
+#define RAYGUI_IMPLEMENTATION
 #include "include/raylib.h"
+#include "include/raygui.h"
+
 //defines so no errors from raylib when including windows.h
 #if defined(WIN32) || defined(_WIN32) && !defined(__GNUC__)  
 
@@ -81,6 +84,15 @@ typedef float real32;
 #include "Math.h"
 #include "MemoryTestApp.h"
 
+
+// TODO: REMEBER TO TAKE THESE OUT AND FIX WARNINGS
+
+#pragma warning(disable : 4244)
+#pragma warning(disable : 4267)
+#pragma warning(disable : 4018)
+
+//this one is needed for raygui
+
 int main(void)
 {
     const int screenWidth = 1280;
@@ -101,8 +113,11 @@ int main(void)
     //Retangles
     Rectangle baseMemoryRect = {screenWidth / 2 - 500,screenHeight / 2 - 100,1000,100};
     Rectangle allocateRect  = {screenWidth / 2 - 60 ,screenHeight / 2 - 180,180,60};
-    Rectangle sliderBarRect = {screenWidth / 2 - 350 ,screenHeight / 2 - 250,800,20};
+    Rectangle sliderBarRect = {screenWidth / 2 - 350 ,screenHeight / 2 - 250,800,50};
     Rectangle sliderRect = {screenWidth / 2 ,sliderBarRect.y - 32,20,80};
+    
+    GuiSetStyle(DEFAULT,TEXT_SIZE,17);
+    GuiSetStyle( DEFAULT, BASE_COLOR_PRESSED, 0x003cb500); 
     Rectangle clearButtonPos = {0,0,0,0};
     
     uint32 blocksAssigned = 0;
@@ -154,43 +169,6 @@ int main(void)
             }
         }
         
-        //NOTE: don't like AllocateButton collision check
-        //Allocate rect collision
-        if(!pState.hasMemAllocated)
-        {
-            if (CheckCollisionPointRec(mousePos, allocateRect) && !pState.hasMemAllocated)
-            {
-                if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
-                {
-                    pState.hasMemAllocated = true;
-                    AllocateBaseMemory(pState,&programMemory, pState.sliderValue);
-                }
-            }
-            
-            //Slider rect mouse input
-            if(CheckCollisionPointRec(mousePos, sliderRect))
-            {
-                if (IsMouseButtonDown(MOUSE_BUTTON_LEFT))
-                {
-                    isMouseHeldDown = true;
-                }
-            }
-            
-            if(isMouseHeldDown)
-            {
-                if(IsMouseButtonUp(MOUSE_BUTTON_LEFT))
-                {
-                    isMouseHeldDown = false;
-                }
-                
-                sliderRect.x = mousePos.x - (sliderRect.width / 2);
-                
-                if(sliderRect.x > (sliderBarRect.x + sliderBarRect.width)) sliderRect.x = (sliderBarRect.x + sliderBarRect.width) - 0.1f;
-                
-                if(sliderRect.x < sliderBarRect.x) sliderRect.x = sliderBarRect.x + 0.1f;
-            }
-        }
-        
         //DRAWING
         BeginDrawing();
         ClearBackground(BLACK);
@@ -200,11 +178,13 @@ int main(void)
         //Maybe a layed / screen system for drawing and logic
         if(!pState.hasMemAllocated)
         {
+            if (GuiButton(allocateRect, "#95#  Alloc Memory"))
+            {
+                pState.hasMemAllocated = true;
+                AllocateBaseMemory(pState,&programMemory, pState.sliderValue);
+            }
             
-            DrawRectangleRec(allocateRect ,RED);
-            DrawText("Alloc memory",allocateRect.x  + (allocateRect.width / 20),allocateRect.y + (allocateRect.height / 4),buttonTxtSize,WHITE);
-            
-            pState.sliderValue = ToPageSize(MapRange(sliderBarRect.x,sliderBarRect.x + sliderBarRect.width,MIN_MEMORY,MAX_MEMORY,sliderRect.x), pState.pageSize);
+            pState.sliderValue = GuiSliderBar(sliderBarRect,"Left", "Right",pState.sliderValue,MIN_MEMORY,MAX_MEMORY);
             
             char* sliderText = 0;
             int32 sliderTextWidth = 0;
@@ -221,53 +201,8 @@ int main(void)
                 DrawText(sliderText,sliderBarRect.x + (sliderBarRect.width / 2) - (sliderTextWidth / 2), sliderBarRect.y - 80, titleSize, WHITE);
             }
             
-            DrawRectangleRec(sliderBarRect,WHITE);
-            
-            (!isMouseHeldDown) ? DrawRectangleRec(sliderRect, BLUE) : DrawRectangleRec(sliderRect, DARKBLUE);
-            
         }else // IF MEMORY ALLOCATED
         {
-            // TODO: Clear all memory, should not be here in drawing
-            //---------------------------------------------------------
-            if(clearButtonPos.width > 0)
-            {
-                if(CheckCollisionPointRec(mousePos, clearButtonPos))
-                {
-                    if (IsMouseButtonDown(MOUSE_BUTTON_LEFT))
-                    {
-                        // clear memory
-                        for(int i = 0 ; i < blocksAssigned; i++)
-                        {
-                            int32 fileSize = memoryBlocks[i].data->size;
-                            int32 memTypeSize = sizeof(fileData);
-                            
-                            if(pState.globalTex.id > 0)
-                            {
-                                Texture defaultTexture = {};
-                                UnloadTexture(pState.globalTex);
-                                pState.globalTex = defaultTexture;
-                            }
-                            // clear block data
-                            memset(memoryBlocks[i].data, 0, fileSize);
-                            
-                            if(pState.globalSound.frameCount > 0)
-                            {
-                                StopSound(pState.globalSound);
-                                UnloadSound(pState.globalSound);
-                                Sound emptySound = {};
-                                pState.globalSound = emptySound;
-                            }
-                            
-                            memoryBlocks[i] = {};
-                        }
-                        
-                        programMemory.Used = 0;
-                        blocksAssigned = 0;
-                    }
-                }
-            }
-            //---------------------------------------------------------
-            
             DrawRectangleRec(baseMemoryRect,BLUE);
             
             //NOTE: cache text here
@@ -293,8 +228,40 @@ int main(void)
             if(programMemory.Used > 0)
             {
                 Vector2 baseMemoryCenter = GetRectCenter(baseMemoryRect);
+                
                 clearButtonPos = SetRect((baseMemoryCenter.x - 80.0f),baseMemoryCenter.y - baseMemoryRect.height - 20,160,50); 
-                DrawButton(clearButtonPos,"Clear Memory ",blockTxtSize,DARKBLUE);
+                
+                
+                if (GuiButton(clearButtonPos, "#113#  Clear Memory"))
+                {
+                    for(int i = 0 ; i < blocksAssigned; i++)
+                    {
+                        int32 fileSize = memoryBlocks[i].data->size;
+                        int32 memTypeSize = sizeof(fileData);
+                        
+                        if(pState.globalTex.id > 0)
+                        {
+                            Texture defaultTexture = {};
+                            UnloadTexture(pState.globalTex);
+                            pState.globalTex = defaultTexture;
+                        }
+                        // clear block data
+                        memset(memoryBlocks[i].data, 0, fileSize);
+                        
+                        if(pState.globalSound.frameCount > 0)
+                        {
+                            StopSound(pState.globalSound);
+                            UnloadSound(pState.globalSound);
+                            Sound emptySound = {};
+                            pState.globalSound = emptySound;
+                        }
+                        
+                        memoryBlocks[i] = {};
+                    }
+                    
+                    programMemory.Used = 0;
+                    blocksAssigned = 0;
+                }
             }
             
             //mouse input for memoryBlocks
@@ -315,8 +282,9 @@ int main(void)
                     DrawTextEx(font,memoryBlocks[i].string,memStringPos,blockTxtSize,1,WHITE);
                 }else
                 {
+                    
                     // check if the memory block string is colliding and move it up if it is.
-                    Rectangle memoryTextLine = {middleBlock,memoryRect.y - 20, 2,20};
+                    Rectangle memoryTextLine = SetRect(middleBlock,memoryRect.y - 20, 2,20);
                     
                     DrawRectangleRec(memoryTextLine,WHITE);
                     DrawTextEx(font,memoryBlocks[i].string,memStringPos,blockTxtSize,1,WHITE);
@@ -327,8 +295,10 @@ int main(void)
                     Rectangle testRect = {baseMemoryRect.x + (baseMemoryRect.width / 2) - 200,baseMemoryRect.y + baseMemoryRect.height, 400,   pState.screenHeight - (baseMemoryRect.y + baseMemoryRect.height) };
                     
                     real32 scale = ShinkToFitBounds(pState.globalTex,testRect);
+                    
                     Vector2 texturePos = SetTextureAtCenter(baseMemoryRect,pState.globalTex,scale);
                     texturePos.y += (baseMemoryRect.height / 2) + (pState.globalTex.height * scale) / 2;
+                    
                     DrawTextureEx(pState.globalTex,texturePos,0,scale,WHITE);
                 }
             }

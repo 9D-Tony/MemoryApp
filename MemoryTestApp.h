@@ -1,6 +1,12 @@
 #include "Memory.h"
 #include "Memory.cpp"
 
+
+// TODO: REMEBER TO TAKE THESE OUT AND FIX WARNINGS
+#pragma warning(disable : 4244)
+#pragma warning(disable : 4267)
+#pragma warning(disable : 4018)
+
 // Memory blocks are the assigned blocks that go within the baseMemoryRect.
 struct programState {
     char windowName[64];
@@ -11,7 +17,7 @@ struct programState {
     int32 pageSize;
     int32 size;
     int32 totalUsed;
-    int32 sliderValue;
+    real32 sliderValue;
     
     memoryBlock* selectedBlock;
     Color blockLastColor;
@@ -60,7 +66,8 @@ internal programState SetProgramState(int32 screenWidth, int32 screenHeight, int
     programStateResult.FPSTarget = FPSTarget;
     programStateResult.hasMemAllocated = false;
     programStateResult.sliderValue = 0;
-    programStateResult. pageSize = pageSize;
+    programStateResult.pageSize = pageSize;
+    programStateResult.sliderValue = (real32)(MAX_MEMORY / 2);
     return (programStateResult);
 }
 
@@ -68,19 +75,19 @@ inline const char* EnumToChar(fileData* fileStruct)
 {
     switch(fileStruct->type)
     {
-        case AUDIO:
+        case F_AUDIO:
         return "Audio";
         break;
         
-        case IMAGE:
+        case F_IMAGE:
         return "Image";
         break;
         
-        case TEXT:
+        case F_TEXT:
         return  "Text";
         break;
         
-        case OTHER:
+        case F_OTHER:
         return "Other";
         break;
         
@@ -304,25 +311,25 @@ internal fileData* LoadFileIntoMemory(memory_arena& programMemory, char* filenam
         //TODO: BLECH, what is this?!
         if(strcmp(extensionString, ".txt") == 0)
         {
-            fileResult->type = TEXT;
+            fileResult->type = F_TEXT;
             printf("file is a text file with size: %d\n", fileLoadResult.size);
             Copy(fileResult->baseData,fileLoadResult.size,(uint8*)fileLoadResult.data);
             
         }else if(CheckIfExtension((char*)supportedAudioFiles,ArrayCount(supportedImageFiles), extensionString))
         {
-            fileResult->type = AUDIO;
+            fileResult->type = F_AUDIO;
             printf("file is an audio file with size: %d\n", fileLoadResult.size);
             Copy(fileResult->baseData,fileLoadResult.size,(uint8*)fileLoadResult.data);
             
         }else if(CheckIfExtension((char*)supportedImageFiles,ArrayCount(supportedImageFiles), extensionString))
         {
-            fileResult->type = IMAGE;
+            fileResult->type = F_IMAGE;
             printf("file is an image file with size: %d\n", fileLoadResult.size);
             Copy(fileResult->baseData,fileLoadResult.size,(uint8*)fileLoadResult.data);
             
         }else
         {
-            fileResult->type = OTHER;
+            fileResult->type = F_OTHER;
             printf("file is other filetype  with size: %d\n", fileLoadResult.size);
             Copy(fileResult->baseData,fileLoadResult.size,(uint8*)fileLoadResult.data);
         }
