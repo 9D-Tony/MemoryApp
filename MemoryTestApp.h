@@ -1,13 +1,6 @@
 #include "Memory.h"
 #include "Memory.cpp"
 
-
-// TODO: REMEBER TO TAKE THESE OUT AND FIX WARNINGS
-#pragma warning(disable : 4244)
-#pragma warning(disable : 4267)
-#pragma warning(disable : 4018)
-
-// Memory blocks are the assigned blocks that go within the baseMemoryRect.
 struct programState {
     char windowName[64];
     int32 FPSTarget;
@@ -32,7 +25,7 @@ struct programState {
 };
 
 char supportedTxtFiles[5][8] = { ".txt", ".blah"};
-char supportedAudioFiles[5][8] = { ".wav",".mp3",".ogg"}; // have to rebuild for flac support
+char supportedAudioFiles[5][8] = { ".wav",".mp3",".ogg"}; // have to rebuild raylib for flac support
 char supportedImageFiles[6][8] = { ".gif", ".png", ".jpg", ".JPG", ".PNG",".GIF"};
 
 // standard text sizes
@@ -42,7 +35,6 @@ char supportedImageFiles[6][8] = { ".gif", ".png", ".jpg", ".JPG", ".PNG",".GIF"
 
 internal void AllocateBaseMemory(programState& data, memory_arena *arena, int32 memSize)
 {
-    //really want this as array of memory_arenas
     data.memoryBase = Win32VirtualAlloc(memSize);
     
     arena->Size = memSize;
@@ -119,7 +111,7 @@ internal void DrawButton(Rectangle buttonRect, const char* text,int32 textSize, 
 {
     //Draw a rectangle with text in the middle.
     DrawRectangleRec(buttonRect,color);
-    Vector2 textDim =  MeasureTextEx(GetFontDefault() ,text, textSize, 1); 
+    Vector2 textDim =  MeasureTextEx(GetFontDefault() ,text, (real32)textSize, 1); 
     
     Vector2 textPos = GetRectCenter(buttonRect); 
     DrawText(text, (int32)(textPos.x - (textDim.x / 2)), (int32)(textPos.y - (textDim.y / 2)), textSize, WHITE);
@@ -149,7 +141,7 @@ internal memoryBlock SetMemoryBlock(memoryBlock block,Rectangle baseMemoryRect,m
     memoryBlock resultBlock = {};
     resultBlock.data = filePtr; 
     
-    int32 beforeMemory = programMemory.Used - filePtr->size;
+    int32 beforeMemory = (int32)programMemory.Used - filePtr->size;
     resultBlock.rect = SetMemoryBlockPos(baseMemoryRect,programMemory, beforeMemory);
     
     srand((uint32)programMemory.Used);
@@ -320,8 +312,8 @@ internal fileData* LoadFileIntoMemory(memory_arena& programMemory, char* filenam
         return NULL;
     }
     
-    int32 filenameLength = strlen(filename);
-    int32 foundChar = strcspn(filename, ".");
+    int32 filenameLength = (int32)strlen(filename);
+    int32 foundChar = (int32)strcspn(filename, ".");
     
     char extensionString[12]; // most extensions will be < 4
     
@@ -366,12 +358,6 @@ internal fileData* LoadFileIntoMemory(memory_arena& programMemory, char* filenam
     return(fileResult);
 }
 
-internal void CalulateBlockPos()
-{
-    
-    
-}
-
 internal void SetStringPos(memoryBlock* memoryBlocks,uint32 blocksAssigned)
 {
     Rectangle memoryRect = memoryBlocks[blocksAssigned].rect;
@@ -413,7 +399,7 @@ internal char* IntToChar(char* buffer, int32 input,const char* extraString)
 {
     //NOTE: sprintf is slow find better way
     uint32 totalDigits = numDigits(input);
-    uint32 extraLength = strlen(extraString);
+    uint32 extraLength = (int32)strlen(extraString);
     
     sprintf_s(buffer,totalDigits + extraLength + 2, "%d %s", input, extraString);
     return buffer;
@@ -424,8 +410,8 @@ internal char* FloatToChar(char* buffer, real32 input, const char* extraString, 
     // f - floor(f) to get decimal part and then use precision to get fractional parts.
     // not accurate but works for the moment.
     // NOTE: sprintf rounds if over .06 of a number. 4.468 > 4.47 ect doing the x 10 trick will fix this.
-    uint32 totalDigits = numDigits(input);
-    uint32 extraLength = strlen(extraString);
+    uint32 totalDigits = numDigits((uint32)input);
+    uint32 extraLength = (uint32)strlen(extraString);
     
     sprintf_s(buffer,totalDigits + extraLength + 2 + (precision + totalDigits + 1), "%.2f %s", input, extraString);
     return buffer;

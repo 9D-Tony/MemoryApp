@@ -48,14 +48,6 @@ typedef float real32;
 #include "Math.h"
 #include "MemoryTestApp.h"
 
-// TODO: REMEBER TO TAKE THESE OUT AND FIX WARNINGS
-
-#pragma warning(disable : 4244)
-#pragma warning(disable : 4267)
-#pragma warning(disable : 4018)
-
-//this one is needed for raygui
-
 int main(void)
 {
     const int screenWidth = 1280;
@@ -112,10 +104,10 @@ int main(void)
             // droppedFiles, programMemory, MemoryBlocks
             if(droppedFiles.paths != NULL)
             {
-                for(int i = 0; i < droppedFiles.count; i++)
+                for(uint32 i = 0; i < droppedFiles.count; i++)
                 {
                     // load file into memory here create memory block rectangles
-                    int32 beforeMemory = programMemory.Used;
+                    int32 beforeMemory = (int32)programMemory.Used;
                     fileData* filePtr = LoadFileIntoMemory(programMemory,droppedFiles.paths[i]);
                     
                     // if we managed to  load the data, if null then could not load data
@@ -145,7 +137,7 @@ int main(void)
             if (GuiButton(allocateRect, "#95#  Alloc Memory"))
             {
                 pState.hasMemAllocated = true;
-                AllocateBaseMemory(pState,&programMemory, pState.sliderValue);
+                AllocateBaseMemory(pState,&programMemory, (int32)pState.sliderValue);
             }
             
             pState.sliderValue = GuiSliderBar(sliderBarRect,"Left", "Right",pState.sliderValue,MIN_MEMORY,MAX_MEMORY);
@@ -155,14 +147,14 @@ int main(void)
             
             if(pState.sliderValue < Megabytes(1))
             {
-                sliderText = IntToChar(textBuffer,ToKilobytes(pState.sliderValue), "Kilobytes");
-                sliderTextWidth = GetTextWidth(sliderText, titleSize);
-                DrawText(sliderText,sliderBarRect.x + (sliderBarRect.width / 2)  - (sliderTextWidth / 2), sliderBarRect.y - 80, titleSize, WHITE);
+                sliderText = IntToChar(textBuffer,ToKilobytes((int32)pState.sliderValue), "Kilobytes");
+                sliderTextWidth = (int32)GetTextWidth(sliderText, (real32)titleSize);
+                DrawText(sliderText,int32(sliderBarRect.x + (sliderBarRect.width / 2)  - (sliderTextWidth / 2)), int32(sliderBarRect.y - 80.0f), titleSize, WHITE);
             }else
             {
-                sliderText = IntToChar(textBuffer,ToMegabytes(pState.sliderValue), "Megabytes");
-                sliderTextWidth = GetTextWidth(sliderText, titleSize);
-                DrawText(sliderText,sliderBarRect.x + (sliderBarRect.width / 2) - (sliderTextWidth / 2), sliderBarRect.y - 80, titleSize, WHITE);
+                sliderText = IntToChar(textBuffer,ToMegabytes((int32)pState.sliderValue), "Megabytes");
+                sliderTextWidth = (int32)GetTextWidth(sliderText, (real32)titleSize);
+                DrawText(sliderText,int32(sliderBarRect.x + (sliderBarRect.width / 2) - (sliderTextWidth / 2)), int32(sliderBarRect.y - 80.0f), titleSize, WHITE);
             }
             
         }else // IF MEMORY ALLOCATED
@@ -171,7 +163,7 @@ int main(void)
             
             //NOTE: cache text here
             real32 totalMemoryLeft = (real32)ToMegabytes((real32)programMemory.Size - (real32)programMemory.Used);
-            int32 totalKiloytesLeft = ToKilobytes(programMemory.Size - programMemory.Used);
+            int32 totalKiloytesLeft = (int32)ToKilobytes(programMemory.Size - programMemory.Used);
             
             char* totalMemoryText = FloatToChar(textBuffer, totalMemoryLeft, "MB", 2);
             
@@ -182,12 +174,12 @@ int main(void)
                 totalMemoryText = IntToChar(textBuffer, (int32)totalMemoryLeft, "KB"); 
             }
             
-            int32 textWidth = MeasureTextEx(font, totalMemoryText, titleSize, 1).x;
-            int32 memLeftTxtWidth = MeasureTextEx(font,"Memory Left", titleSize, 1).x;
+            int32 textWidth = (int32)MeasureTextEx(font, totalMemoryText, titleSize, 1).x;
+            int32 memLeftTxtWidth = (int32)MeasureTextEx(font,"Memory Left", titleSize, 1).x;
             
-            DrawText(totalMemoryText,GetRectCenter(baseMemoryRect).x - (textWidth / 2),baseMemoryRect.y - baseMemoryRect.height * 1.5f,titleSize,WHITE);
+            DrawText(totalMemoryText,int32(GetRectCenter(baseMemoryRect).x - (textWidth / 2)),int32(baseMemoryRect.y - baseMemoryRect.height * 1.5f),titleSize,WHITE);
             
-            DrawText("Memory Left",GetRectCenter(baseMemoryRect).x - (memLeftTxtWidth / 2),baseMemoryRect.y - baseMemoryRect.height * 1.85f,titleSize,WHITE);
+            DrawText("Memory Left",int32(GetRectCenter(baseMemoryRect).x - (memLeftTxtWidth / 2)),int32(baseMemoryRect.y - baseMemoryRect.height * 1.85f),titleSize,WHITE);
             
             if(programMemory.Used > 0)
             {
@@ -198,7 +190,7 @@ int main(void)
                 
                 if (GuiButton(clearButtonPos, "#113#  Clear Memory"))
                 {
-                    for(int i = 0 ; i < blocksAssigned; i++)
+                    for(uint32 i = 0 ; i < blocksAssigned; i++)
                     {
                         int32 fileSize = memoryBlocks[i].data->size;
                         int32 memTypeSize = sizeof(fileData);
@@ -261,7 +253,7 @@ int main(void)
                     }else
                     {
                         size_t totalMoveSize = 0;
-                        for(int i = (pState.selectedIndex + 1); i < blocksAssigned; i++)
+                        for(uint32 i = (pState.selectedIndex + 1); i < blocksAssigned; i++)
                         {
                             totalMoveSize +=  memoryBlocks[i].data->size;
                         }
@@ -271,7 +263,7 @@ int main(void)
                         //Move mem works now but need to copy memoryBlocks data over
                         MoveMem(selectedBlockData ,memoryBlocks[pState.selectedIndex+1].data,totalMoveSize); // this is right now, pretty sure
                         
-                        for(int b = pState.selectedIndex; b < blocksAssigned; b++)
+                        for(uint32 b = pState.selectedIndex; b < blocksAssigned; b++)
                         {
                             if(memoryBlocks[b+1].data != NULL)
                             {
@@ -317,7 +309,7 @@ int main(void)
             }
             
             //mouse input for memoryBlocks
-            for(int i = 0; i < blocksAssigned; i++)
+            for(uint32 i = 0; i < blocksAssigned; i++)
             {
                 MemoryBlocksMouseIO(i, memoryBlocks,mousePos, &pState);
                 Rectangle memoryRect = memoryBlocks[i].rect;
@@ -325,7 +317,7 @@ int main(void)
                 // Draw each memory block
                 DrawRectangleRec(memoryRect,memoryBlocks[i].color);
                 
-                int32 middleBlock = memoryRect.x + (memoryRect.width / 2);
+                real32 middleBlock = memoryRect.x + (memoryRect.width / 2);
                 Vector2 memStringPos = memoryBlocks[i].stringPos;
                 
                 if(memoryBlocks[i].stringWidth < memoryRect.width)
