@@ -48,7 +48,6 @@ typedef float real32;
 #include "Math.h"
 #include "MemoryTestApp.h"
 
-
 // TODO: REMEBER TO TAKE THESE OUT AND FIX WARNINGS
 
 #pragma warning(disable : 4244)
@@ -75,7 +74,7 @@ int main(void)
     FilePathList droppedFiles = { 0 };
     
     //Retangles
-    Rectangle baseMemoryRect = {screenWidth / 2 - 500,screenHeight / 2 - 100,1000,100};
+    Rectangle baseMemoryRect = pState.baseMemoryRect;
     Rectangle allocateRect  = {screenWidth / 2 - 60 ,screenHeight / 2 - 180,180,60};
     Rectangle sliderBarRect = {screenWidth / 2 - 350 ,screenHeight / 2 - 250,800,50};
     Rectangle sliderRect = {screenWidth / 2 ,sliderBarRect.y - 32,20,80};
@@ -97,6 +96,8 @@ int main(void)
     {
         (!IsWindowFocused()) ? SetTargetFPS(30) : SetTargetFPS(pState.FPSTarget);
         mousePos = GetMousePosition();
+        
+        CheckDebugScreenshot();
         
         if(IsFileDropped())
         {
@@ -121,12 +122,11 @@ int main(void)
                     if(filePtr != NULL)
                     {
                         //get string width
-                        memoryBlocks[blocksAssigned].stringWidth = GetTextWidth(memoryBlocks[blocksAssigned].string,20);
+                        memoryBlocks[blocksAssigned].stringWidth = GetTextWidth(memoryBlocks[blocksAssigned].string,blockTxtSize);
                         
                         memoryBlocks[blocksAssigned] = SetMemoryBlock(memoryBlocks[blocksAssigned],baseMemoryRect,programMemory,filePtr);
                         
-                        SetDroppedFiles(memoryBlocks, blocksAssigned);
-                        
+                        SetStringPos(memoryBlocks, blocksAssigned);
                         blocksAssigned++;
                     }
                 }
@@ -223,15 +223,99 @@ int main(void)
                         memoryBlocks[i] = {};
                     }
                     
+                    pState.selectedBlock = NULL;
                     programMemory.Used = 0;
                     blocksAssigned = 0;
+                }
+            }
+            
+            if(pState.selectedBlock != NULL)
+            {
+                Vector2 baseMemCenter = GetRectCenter(baseMemoryRect);
+                Rectangle endMemRect = SetRect(baseMemoryRect.x + baseMemoryRect.width,baseMemCenter.y,20,20);
+                
+                if(GuiButton(endMemRect, "#113#  Delete Block"))
+                {
+                    if(pState.globalSound.frameCount > 0)
+                    {
+                        StopAudio(&pState);
+                    }
+                    
+                    if(pState.globalTex.id > 0)
+                    {
+                        ClearTexture(&pState);
+                    }
+                    
+                    fileData* selectedBlockData = pState.selectedBlock->data;
+                    int32 fileSize = selectedBlockData->size;
+                    
+                    assert(fileSize > 0);
+                    
+                    memoryBlock memoryBlockSaved = (memoryBlock)*pState.selectedBlock;
+                    
+                    memset(pState.selectedBlock->data, 0, fileSize);
+                    
+                    programMemory.Used -= fileSize; 
+                    
+                    //fine if deleting end block
+                    if(pState.selectedIndex == (blocksAssigned - 1))
+                    {
+                        memoryBlocks[pState.selectedIndex] = {};
+                        blocksAssigned--;
+                    }else
+                    {
+                        // assume not at end and there is a memory block above us, use MoveMemory function to move the next block/s into the position that was left.
+                        // should be next memory pointer + lastmemoryPointer + the size of data to get full blocks that you want to move.
+                        
+                        size_t totalMoveSize = 0;
+                        for(int i = (pState.selectedIndex + 1); i < blocksAssigned; i++)
+                        {
+                            totalMoveSize +=  memoryBlocks[i].data->size;
+                        }
+                        
+                        memoryBlock nextBlock = memoryBlocks[pState.selectedIndex+1];
+                        
+                        //Move mem works now but need to copy memoryBlocks data over
+                        MoveMem(selectedBlockData ,memoryBlocks[pState.selectedIndex+1].data,totalMoveSize); // this is right now, pretty sure
+                        
+                        for(int b = pState.selectedIndex; b < blocksAssigned; b++)
+                        {
+                            if(memoryBlocks[b+1].data != NULL)
+                            {
+                                memoryBlock blockAfter  = memoryBlocks[b+1];
+                                memoryBlock blockBefore = memoryBlocks[b-1];
+                                
+                                memoryBlocks[b] = {};
+                                memoryBlocks[b] = blockAfter;
+                                memoryBlocks[b].rect.x = blockBefore.rect.x +  blockBefore.rect.width;
+                                
+                                //Kinda works, some audio still gets cut off in certain places
+                                uint8* memAddress = (uint8*)(blockBefore.data) + blockBefore.data->size;
+                                memoryBlocks[b].data = (fileData*)memAddress;
+                                memoryBlocks[b].data->baseData = (uint8*)(memoryBlocks[b].data) + sizeof(fileData); 
+                                
+                                if(b == (blocksAssigned - 2))
+                                {
+                                    memoryBlocks[b+1] = {};
+                                }
+                                
+                                memoryBlocks[b].stringWidth = GetTextWidth(blockAfter.string,blockTxtSize);
+                                SetStringPos(memoryBlocks,b);
+                            }
+                        }
+                        
+                        blocksAssigned--;
+                        
+                    }
+                    
+                    //get correct block in memory blocks array and shift all other blocks down to that position.
                 }
             }
             
             //mouse input for memoryBlocks
             for(int i = 0; i < blocksAssigned; i++)
             {
-                MemoryblocksMouseIO(i, memoryBlocks,mousePos, &pState);
+                MemoryBlocksMouseIO(i, memoryBlocks,mousePos, &pState);
                 Rectangle memoryRect = memoryBlocks[i].rect;
                 
                 // Draw each memory block
@@ -246,7 +330,6 @@ int main(void)
                     DrawTextEx(font,memoryBlocks[i].string,memStringPos,blockTxtSize,1,WHITE);
                 }else
                 {
-                    
                     // check if the memory block string is colliding and move it up if it is.
                     Rectangle memoryTextLine = SetRect(middleBlock,memoryRect.y - 20, 2,20);
                     
@@ -266,8 +349,6 @@ int main(void)
                     DrawTextureEx(pState.globalTex,texturePos,0,scale,WHITE);
                 }
             }
-            
-            
         }
         
         EndDrawing();

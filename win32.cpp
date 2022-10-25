@@ -87,4 +87,10 @@ internal fileInfo Win32LoadFile(char* filename)
     return(fileResult);
 }
 
+internal void MoveMem(void* dest, void* source, size_t length)
+{
+    //The first parameter, Destination, must be large enough to hold Length bytes of Source; otherwise, a buffer overrun may occur.
+    MoveMemory(dest,source,length);
+}
+
 #endif

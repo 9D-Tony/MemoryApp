@@ -18,8 +18,10 @@ struct programState {
     int32 size;
     int32 totalUsed;
     real32 sliderValue;
+    Rectangle baseMemoryRect;
     
     memoryBlock* selectedBlock;
+    uint32 selectedIndex;
     Color blockLastColor;
     Texture2D globalTex;
     Sound globalSound;
@@ -59,15 +61,19 @@ internal Rectangle SetRect(real32 x,real32 y,real32 width,real32 height)
 
 internal programState SetProgramState(int32 screenWidth, int32 screenHeight, int32 FPSTarget, int32 pageSize)
 {
-    programState programStateResult  = {};
-    programStateResult.screenWidth = screenWidth;
-    programStateResult.screenHeight = screenHeight;
-    programStateResult.FPSTarget = FPSTarget;
-    programStateResult.hasMemAllocated = false;
-    programStateResult.sliderValue = 0;
-    programStateResult.pageSize = pageSize;
-    programStateResult.sliderValue = (real32)(MAX_MEMORY / 2);
-    return (programStateResult);
+    programState pState  = {};
+    pState.screenWidth = screenWidth;
+    pState.screenHeight = screenHeight;
+    pState.FPSTarget = FPSTarget;
+    pState.hasMemAllocated = false;
+    pState.sliderValue = 0;
+    pState.pageSize = pageSize;
+    pState.sliderValue = (real32)(MAX_MEMORY / 2);
+    
+    //Silly magic numbers for now, maybe forever
+    pState.baseMemoryRect = {(real32)screenWidth / 2 - 500,(real32)screenHeight / 2 - 100,1000,100};
+    
+    return pState;
 }
 
 inline const char* EnumToChar(fileData* fileStruct)
@@ -109,6 +115,16 @@ internal real32 GetTextWidth(char* string, real32 fontSize)
     return MeasureTextEx(GetFontDefault(),string,fontSize,1).x;
 }
 
+internal void DrawButton(Rectangle buttonRect, const char* text,int32 textSize, Color color)
+{
+    //Draw a rectangle with text in the middle.
+    DrawRectangleRec(buttonRect,color);
+    Vector2 textDim =  MeasureTextEx(GetFontDefault() ,text, textSize, 1); 
+    
+    Vector2 textPos = GetRectCenter(buttonRect); 
+    DrawText(text, (int32)(textPos.x - (textDim.x / 2)), (int32)(textPos.y - (textDim.y / 2)), textSize, WHITE);
+}
+
 internal inline Rectangle SetMemoryBlockPos(Rectangle baseMemoryRect, memory_arena& programMemory, uint32 beforeUsedMemory)
 {
     Rectangle Result = {};
@@ -128,16 +144,6 @@ internal inline Rectangle SetMemoryBlockPos(Rectangle baseMemoryRect, memory_are
     return Result;
 }
 
-internal void DrawButton(Rectangle buttonRect, const char* text,int32 textSize, Color color)
-{
-    //Draw a rectangle with text in the middle.
-    DrawRectangleRec(buttonRect,color);
-    Vector2 textDim =  MeasureTextEx(GetFontDefault() ,text, textSize, 1); 
-    
-    Vector2 textPos = GetRectCenter(buttonRect); 
-    DrawText(text, (int32)(textPos.x - (textDim.x / 2)), (int32)(textPos.y - (textDim.y / 2)), textSize, WHITE);
-}
-
 internal memoryBlock SetMemoryBlock(memoryBlock block,Rectangle baseMemoryRect,memory_arena programMemory, fileData* filePtr)
 {
     memoryBlock resultBlock = {};
@@ -152,7 +158,7 @@ internal memoryBlock SetMemoryBlock(memoryBlock block,Rectangle baseMemoryRect,m
     strcpy_s(resultBlock.string,EnumToChar(resultBlock.data));
     
     //NOTE: maybe standardise string sizes
-    resultBlock.stringWidth = GetTextWidth(resultBlock.string,20);
+    resultBlock.stringWidth = GetTextWidth(resultBlock.string,blockTxtSize);
     
     return resultBlock;
 }
@@ -229,7 +235,23 @@ internal void ClearTexture(programState* programData)
     programData->globalTex = texture;
 }
 
-internal void MemoryblocksMouseIO(uint32 index, memoryBlock* memoryBlocks, Vector2 mousePos, programState* programData)
+#if defined(_DEBUG)
+uint32 screenshotNum = 0;
+internal void CheckDebugScreenshot()
+{
+    if (IsKeyPressed(KEY_F1)) 
+    {
+        char numBuffer[40];
+        sprintf(numBuffer, "DebugScreenshots/Debug_%d.png",screenshotNum);
+        TakeScreenshot(numBuffer);
+        screenshotNum++;
+    }
+}
+#else
+internal void CheckDebugScreenshot() {}
+#endif
+
+internal void MemoryBlocksMouseIO(uint32 index, memoryBlock* memoryBlocks, Vector2 mousePos, programState* pState)
 {
     Rectangle memoryRect = memoryBlocks[index].rect;
     
@@ -239,13 +261,17 @@ internal void MemoryblocksMouseIO(uint32 index, memoryBlock* memoryBlocks, Vecto
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
         {
             // reset last block to original color
-            if(programData->selectedBlock != NULL)
+            if(pState->selectedBlock != NULL)
             {
-                programData->selectedBlock->color = programData->blockLastColor; 
+                pState->selectedBlock->color = pState->blockLastColor; 
             }
             
-            programData->selectedBlock = &memoryBlocks[index]; 
-            programData->blockLastColor = memoryBlocks[index].color;
+            //+1 here so delete block button would work properly, twas a hack
+            pState->selectedIndex = index;
+            
+            pState->selectedBlock = &memoryBlocks[index]; 
+            pState->blockLastColor = memoryBlocks[index].color;
+            
             memoryBlocks[index].color = GRAY;
             
             // get file entension and load image/audio
@@ -255,20 +281,27 @@ internal void MemoryblocksMouseIO(uint32 index, memoryBlock* memoryBlocks, Vecto
             if(CheckIfExtension((char*)supportedImageFiles,ArrayCount(supportedImageFiles), memoryData->extension))
             {
                 // stop audio if clicking on image
-                StopAudio(programData);
-                programData->globalTex = LoadImageFrmMemory(memoryData,programData); 
+                StopAudio(pState);
+                pState->globalTex = LoadImageFrmMemory(memoryData,pState); 
             }
             
             if(CheckIfExtension((char*)supportedAudioFiles,ArrayCount(supportedAudioFiles), memoryData->extension))
             {
-                ClearTexture(programData);
-                
-                StopAudio(programData);
-                
-                programData->globalSound = LoadSoundFromMemory(memoryData,programData);
-                
-                PlaySound(programData->globalSound);
+                ClearTexture(pState);
+                StopAudio(pState);
             }
+        }
+        
+    }
+    
+    if(pState->selectedBlock != NULL && pState->selectedBlock->data != NULL && pState->selectedBlock->data->type == F_AUDIO)
+    {
+        Vector2 baseMemoryRect = GetRectCenter(pState->baseMemoryRect); 
+        Rectangle playRect = {baseMemoryRect.x - 40,baseMemoryRect.y + 60,80,40};
+        if(GuiButton(playRect, "#131#  Play"))
+        {
+            pState->globalSound = LoadSoundFromMemory(pState->selectedBlock->data,pState);
+            PlaySound(pState->globalSound);
         }
     }
 }
@@ -303,7 +336,6 @@ internal fileData* LoadFileIntoMemory(memory_arena& programMemory, char* filenam
     {
         int32 extensionLength = filenameLength - foundChar;
         strcpy_s(extensionString, filename + foundChar);
-        printf("extension is: %s \n",extensionString);
         strcpy_s(fileResult->extension, extensionString);
         
         //NOTE:  doesn't support UTF-8
@@ -311,25 +343,21 @@ internal fileData* LoadFileIntoMemory(memory_arena& programMemory, char* filenam
         if(strcmp(extensionString, ".txt") == 0)
         {
             fileResult->type = F_TEXT;
-            printf("file is a text file with size: %d\n", fileLoadResult.size);
             Copy(fileResult->baseData,fileLoadResult.size,(uint8*)fileLoadResult.data);
             
         }else if(CheckIfExtension((char*)supportedAudioFiles,ArrayCount(supportedImageFiles), extensionString))
         {
             fileResult->type = F_AUDIO;
-            printf("file is an audio file with size: %d\n", fileLoadResult.size);
             Copy(fileResult->baseData,fileLoadResult.size,(uint8*)fileLoadResult.data);
             
         }else if(CheckIfExtension((char*)supportedImageFiles,ArrayCount(supportedImageFiles), extensionString))
         {
             fileResult->type = F_IMAGE;
-            printf("file is an image file with size: %d\n", fileLoadResult.size);
             Copy(fileResult->baseData,fileLoadResult.size,(uint8*)fileLoadResult.data);
             
         }else
         {
             fileResult->type = F_OTHER;
-            printf("file is other filetype  with size: %d\n", fileLoadResult.size);
             Copy(fileResult->baseData,fileLoadResult.size,(uint8*)fileLoadResult.data);
         }
     }
@@ -338,16 +366,19 @@ internal fileData* LoadFileIntoMemory(memory_arena& programMemory, char* filenam
     return(fileResult);
 }
 
-internal void SetDroppedFiles(memoryBlock* memoryBlocks,uint32 blocksAssigned)
+internal void CalulateBlockPos()
 {
-    // if we managed to  load the data, if null then could not load data
     
-    //get string width
+    
+}
+
+internal void SetStringPos(memoryBlock* memoryBlocks,uint32 blocksAssigned)
+{
     Rectangle memoryRect = memoryBlocks[blocksAssigned].rect;
     
     int32 middleBlock = (int32)(memoryRect.x + (memoryRect.width / 2));
     
-    // if it can fit in the memory block
+    // if string can fit in the memory block
     if(memoryBlocks[blocksAssigned].stringWidth < memoryRect.width)
     {
         memoryBlocks[blocksAssigned].stringPos = SetPos(middleBlock - (memoryBlocks[blocksAssigned].stringWidth / 2), memoryRect.y + (memoryRect.height / 2));
@@ -365,7 +396,6 @@ internal void SetDroppedFiles(memoryBlock* memoryBlocks,uint32 blocksAssigned)
             memoryBlock curStringBlock = memoryBlocks[blocksAssigned];
             memoryBlock lastStringBlock = memoryBlocks[blocksAssigned - 1];
             real32 YDistance = curStringBlock.stringPos.y -  lastStringBlock.stringPos.y;
-            printf("Distance Y: %f \n", YDistance);
             
             //TODO: collides with text rendered in middle of memory block 
             if(lastStringBlock.stringPos.x  > curStringBlock.stringPos.x ||
