@@ -232,9 +232,9 @@ int main(void)
             if(pState.selectedBlock != NULL)
             {
                 Vector2 baseMemCenter = GetRectCenter(baseMemoryRect);
-                Rectangle endMemRect = SetRect(baseMemoryRect.x + baseMemoryRect.width,baseMemCenter.y,20,20);
+                Rectangle endMemRect = SetRect(baseMemoryRect.x + baseMemoryRect.width - 150.0f,baseMemCenter.y - baseMemoryRect.height ,150,25);
                 
-                if(GuiButton(endMemRect, "#113#  Delete Block"))
+                if(GuiButton(endMemRect, "#113# Delete Block") || IsKeyPressed(KEY_DELETE))
                 {
                     if(pState.globalSound.frameCount > 0)
                     {
@@ -249,12 +249,8 @@ int main(void)
                     fileData* selectedBlockData = pState.selectedBlock->data;
                     int32 fileSize = selectedBlockData->size;
                     
-                    assert(fileSize > 0);
-                    
                     memoryBlock memoryBlockSaved = (memoryBlock)*pState.selectedBlock;
-                    
                     memset(pState.selectedBlock->data, 0, fileSize);
-                    
                     programMemory.Used -= fileSize; 
                     
                     //fine if deleting end block
@@ -264,9 +260,6 @@ int main(void)
                         blocksAssigned--;
                     }else
                     {
-                        // assume not at end and there is a memory block above us, use MoveMemory function to move the next block/s into the position that was left.
-                        // should be next memory pointer + lastmemoryPointer + the size of data to get full blocks that you want to move.
-                        
                         size_t totalMoveSize = 0;
                         for(int i = (pState.selectedIndex + 1); i < blocksAssigned; i++)
                         {
@@ -283,14 +276,25 @@ int main(void)
                             if(memoryBlocks[b+1].data != NULL)
                             {
                                 memoryBlock blockAfter  = memoryBlocks[b+1];
-                                memoryBlock blockBefore = memoryBlocks[b-1];
-                                
                                 memoryBlocks[b] = {};
                                 memoryBlocks[b] = blockAfter;
-                                memoryBlocks[b].rect.x = blockBefore.rect.x +  blockBefore.rect.width;
                                 
-                                //Kinda works, some audio still gets cut off in certain places
-                                uint8* memAddress = (uint8*)(blockBefore.data) + blockBefore.data->size;
+                                //TODO: make it work when the first block is deleted.
+                                uint8* memAddress;
+                                
+                                if(b != 0)
+                                {
+                                    memoryBlock blockBefore = memoryBlocks[b-1];
+                                    memoryBlocks[b].rect.x = blockBefore.rect.x +  blockBefore.rect.width;
+                                    memAddress = (uint8*)(blockBefore.data) + blockBefore.data->size;
+                                    
+                                }else
+                                {
+                                    // if selected block == 0
+                                    memoryBlocks[b].rect.x = pState.baseMemoryRect.x;
+                                    memAddress = (uint8*)pState.memoryBase;
+                                }
+                                
                                 memoryBlocks[b].data = (fileData*)memAddress;
                                 memoryBlocks[b].data->baseData = (uint8*)(memoryBlocks[b].data) + sizeof(fileData); 
                                 
@@ -308,7 +312,7 @@ int main(void)
                         
                     }
                     
-                    //get correct block in memory blocks array and shift all other blocks down to that position.
+                    pState.selectedBlock = NULL;
                 }
             }
             
