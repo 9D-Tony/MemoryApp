@@ -1,2 +1,19 @@
 # MemoryTestApp
- Test memory allocation application, a visual way of showing memory.
+ Test memory allocation application, a visual way of showing memory allocation and how data fits into it.
+ 
+ Allows the user to:
+* Allocate virtual memory up to MAX_MEMORY
+* drag and drop files into the window to load them into memory and visulise how much space they are taking up
+* delete blocks of memory or clear all the currently allocated memory.
+* clicking on an image or audio block will try to load the file and show/play if supported by raylib
+
+<br/>
+<br/>
+<br/>
+<br/>
+ 
+ Screenshots:
+![MemoryTest01](https://user-images.githubusercontent.com/3617889/197897146-de9e76d0-8cc4-4f0f-853f-2b1fab74c79b.png)
+ 
+ 
+![MemoryTest02](https://user-images.githubusercontent.com/3617889/197897157-676a3b59-877d-4cca-9a7d-827487d5cc32.png)
