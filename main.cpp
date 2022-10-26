@@ -11,7 +11,7 @@ typedef uint32_t uint32;
 typedef uint64_t uint64;
 typedef int32_t bool32;
 
-typedef size_t memory_index;
+typedef size_t m_index;
 
 typedef int8_t int8;
 typedef int16_t int16;
@@ -101,7 +101,6 @@ int main(void)
             
             droppedFiles = LoadDroppedFiles();
             
-            // droppedFiles, programMemory, MemoryBlocks
             if(droppedFiles.paths != NULL)
             {
                 for(uint32 i = 0; i < droppedFiles.count; i++)
@@ -113,9 +112,7 @@ int main(void)
                     // if we managed to  load the data, if null then could not load data
                     if(filePtr != NULL)
                     {
-                        //get string width
                         memoryBlocks[blocksAssigned].stringWidth = GetTextWidth(memoryBlocks[blocksAssigned].string,blockTxtSize);
-                        
                         memoryBlocks[blocksAssigned] = SetMemoryBlock(memoryBlocks[blocksAssigned],baseMemoryRect,programMemory,filePtr);
                         
                         SetStringPos(memoryBlocks, blocksAssigned);

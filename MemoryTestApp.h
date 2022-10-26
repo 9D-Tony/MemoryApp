@@ -120,8 +120,6 @@ internal void DrawButton(Rectangle buttonRect, const char* text,int32 textSize, 
 internal inline Rectangle SetMemoryBlockPos(Rectangle baseMemoryRect, memory_arena& programMemory, uint32 beforeUsedMemory)
 {
     Rectangle Result = {};
-    //NOTE: to get starting point we need to get memory_arena before allocation happened
-    //calculate position based on memory
     
     real32 oldRange = (real32)programMemory.Size;
     
@@ -149,7 +147,6 @@ internal memoryBlock SetMemoryBlock(memoryBlock block,Rectangle baseMemoryRect,m
     
     strcpy_s(resultBlock.string,EnumToChar(resultBlock.data));
     
-    //NOTE: maybe standardise string sizes
     resultBlock.stringWidth = GetTextWidth(resultBlock.string,blockTxtSize);
     
     return resultBlock;
@@ -160,8 +157,6 @@ internal Sound LoadSoundFromMemory(fileData* data, programState* programData)
     Sound sound = {};
     Wave wave = {};
     
-    //NOTE: maybe consider a ring buffer for audio and images
-    //unload the other sound from memory first
     if(programData->globalSound.frameCount > 0)
     {
         UnloadSound(programData->globalSound);
@@ -195,7 +190,6 @@ internal Texture2D LoadImageFrmMemory(fileData* data, programState* programData)
     Image inputImage = LoadImageFromMemory(data->extension, data->baseData, data->size - sizeof(fileData));
     texture = LoadTextureFromImage(inputImage);
     
-    // if texture can't load for some reason
     if(texture.id == NULL)
     {
         printf("can't load image\n");
@@ -240,7 +234,7 @@ internal void CheckDebugScreenshot()
     }
 }
 #else
-internal void CheckDebugScreenshot() {}
+internal void CheckDebugScreenshot() {} //stub
 #endif
 
 internal void MemoryBlocksMouseIO(uint32 index, memoryBlock* memoryBlocks, Vector2 mousePos, programState* pState)
@@ -300,12 +294,9 @@ internal void MemoryBlocksMouseIO(uint32 index, memoryBlock* memoryBlocks, Vecto
 
 internal fileData* LoadFileIntoMemory(memory_arena& programMemory, char* filename)
 {
-    // NOTE: can strlen fail here?
-    //fileData 
     fileData* fileResult = {};
     fileInfo fileLoadResult = Win32LoadFile(filename);
     
-    //Error could not fit file inside memory
     if(fileLoadResult.data == NULL || fileLoadResult.size > (programMemory.Size - programMemory.Used))
     {
         printf("File could not fit inside avaliable memory\n");
@@ -330,7 +321,7 @@ internal fileData* LoadFileIntoMemory(memory_arena& programMemory, char* filenam
         strcpy_s(extensionString, filename + foundChar);
         strcpy_s(fileResult->extension, extensionString);
         
-        //NOTE:  doesn't support UTF-8
+        //NOTE:  doesn't support UTF-8 atm
         //TODO: BLECH, what is this?!
         if(strcmp(extensionString, ".txt") == 0)
         {
@@ -361,10 +352,9 @@ internal fileData* LoadFileIntoMemory(memory_arena& programMemory, char* filenam
 internal void SetStringPos(memoryBlock* memoryBlocks,uint32 blocksAssigned)
 {
     Rectangle memoryRect = memoryBlocks[blocksAssigned].rect;
-    
     int32 middleBlock = (int32)(memoryRect.x + (memoryRect.width / 2));
     
-    // if string can fit in the memory block
+    // if string width can fit in the memory block
     if(memoryBlocks[blocksAssigned].stringWidth < memoryRect.width)
     {
         memoryBlocks[blocksAssigned].stringPos = SetPos(middleBlock - (memoryBlocks[blocksAssigned].stringWidth / 2), memoryRect.y + (memoryRect.height / 2));
@@ -397,18 +387,15 @@ internal void SetStringPos(memoryBlock* memoryBlocks,uint32 blocksAssigned)
 
 internal char* IntToChar(char* buffer, int32 input,const char* extraString)
 {
-    //NOTE: sprintf is slow find better way
     uint32 totalDigits = numDigits(input);
     uint32 extraLength = (int32)strlen(extraString);
-    
     sprintf_s(buffer,totalDigits + extraLength + 2, "%d %s", input, extraString);
     return buffer;
 }
 
 internal char* FloatToChar(char* buffer, real32 input, const char* extraString, uint32 precision)
 {
-    // f - floor(f) to get decimal part and then use precision to get fractional parts.
-    // not accurate but works for the moment.
+    // not completly accurate but works for the moment.
     // NOTE: sprintf rounds if over .06 of a number. 4.468 > 4.47 ect doing the x 10 trick will fix this.
     uint32 totalDigits = numDigits((uint32)input);
     uint32 extraLength = (uint32)strlen(extraString);

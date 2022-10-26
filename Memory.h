@@ -39,9 +39,9 @@ struct memoryBlock
 
 struct memory_arena
 {
-	memory_index Size;
+	m_index Size;
 	uint8* Base;
-	memory_index Used;
+	m_index Used;
 };
 
 

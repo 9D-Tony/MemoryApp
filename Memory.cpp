@@ -12,7 +12,7 @@ void Copy(void* source,uint32 size, void* destination)
 
 #define pushStruct(Arena, type) (type *)pushSize_(Arena,sizeof(type))
 #define pushArray(Arena, Count, type) (type *)pushSize_(Arena,(Count) * sizeof(type))
-void* pushSize_(memory_arena *Arena, memory_index size) // the size can be a type then we get the size of the type to push
+void* pushSize_(memory_arena *Arena, m_index size)
 {
 	assert(Arena->Used + size < Arena->Size);
 	void *Result = Arena->Base + Arena->Used;
@@ -26,13 +26,13 @@ internal inline uint32 ToPageSize(uint32 input, uint32 pageSize)
     return input - remainder;
 }
 
-internal void arena_align(memory_arena *arena, memory_index boundary)
+internal void arena_align(memory_arena *arena, m_index boundary)
 {
-	memory_index p =(arena->Used + (boundary - 1));
+	m_index p =(arena->Used + (boundary - 1));
 	arena->Used = p - p % boundary;
 }
 
-internal void ClearMemory(memory_arena *Arena, void *baseAddress, memory_index size)
+internal void ClearMemory(memory_arena *Arena, void *baseAddress, m_index size)
 {
     assert(size < Arena->Used);
     ZeroMemory(baseAddress,size);
