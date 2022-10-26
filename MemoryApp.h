@@ -284,7 +284,7 @@ internal void MemoryBlocksMouseIO(uint32 index, memoryBlock* memoryBlocks, Vecto
     {
         Vector2 baseMemoryRect = GetRectCenter(pState->baseMemoryRect); 
         Rectangle playRect = {baseMemoryRect.x - 40,baseMemoryRect.y + 60,80,40};
-        if(GuiButton(playRect, "#131#  Play"))
+        if(GuiButton(playRect, "#131# Play"))
         {
             pState->globalSound = LoadSoundFromMemory(pState->selectedBlock->data,pState);
             PlaySound(pState->globalSound);
