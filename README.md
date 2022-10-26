@@ -7,10 +7,12 @@ Written with the help of Raylib and Raygui, raylib  and raygui header files can 
 When building and running you will need the raylib dll in the build folder to run the project.
 
 Tested with:
-visual studio 2019
-visual studio 2022
+* visual studio 2019
+* visual studio 2022
+
+<br/>
  
- Allows the user to:
+ The programa allows the user to:
 * Allocate virtual memory up to MAX_MEMORY
 * drag and drop files into the window to load them into memory and visulise how much space they are taking up
 * delete blocks of memory or clear all the currently allocated memory.
