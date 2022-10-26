@@ -44,5 +44,4 @@ struct memory_arena
 	m_index Used;
 };
 
-
 #endif //_MEMORY_H

@@ -1,17 +1,23 @@
 #ifndef WIN32_PLATFORM
 #define WIN32_PLATFORM
 
-// Code for windows functions
-// (TODO): change to better name
 struct fileInfo 
 {
     uint32 size;
     void* data;
 };
 
-internal int32 GetSystemPageSize()
+// Code for windows functions
+inline static uint64 GetPhysicalMemorySize()
 {
-    SYSTEM_INFO sysInfo; // system infomation
+    MEMORYSTATUSEX statex;
+    GlobalMemoryStatusEx(&statex);
+    return statex.ullTotalPhys;
+}
+
+static int32 GetSystemPageSize()
+{
+    SYSTEM_INFO sysInfo;
     GetSystemInfo(&sysInfo);
     
     return sysInfo.dwPageSize;
@@ -20,18 +26,17 @@ internal int32 GetSystemPageSize()
 inline uint32
 SafeTrucate64(uint64 value)
 {
-	
     assert(value <= 0xFFFFFFFF);
 	uint32 Result = (uint32)value;
 	return Result;
 }
 
-internal void* Win32VirtualAlloc(int32 size)
+static void* Win32VirtualAlloc(uint32 size)
 {
     return VirtualAlloc(0,size,  MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE );
 }
 
-internal void Win32VirtualFree(void* memoryPtr)
+static void Win32VirtualFree(void* memoryPtr)
 {
     if(memoryPtr != NULL)
     {
@@ -39,9 +44,9 @@ internal void Win32VirtualFree(void* memoryPtr)
     }
 }
 
-internal fileInfo Win32LoadFile(char* filename)
+static fileInfo Win32LoadFile(char* filename)
 {
-    //get file size
+    
     fileInfo fileResult = {};
     void* Result = 0;
     
@@ -87,7 +92,7 @@ internal fileInfo Win32LoadFile(char* filename)
     return(fileResult);
 }
 
-internal void MoveMem(void* dest, void* source, size_t length)
+static void MoveMem(void* dest, void* source, size_t length)
 {
     //The first parameter, Destination, must be large enough to hold Length bytes of Source; otherwise, a buffer overrun may occur.
     MoveMemory(dest,source,length);

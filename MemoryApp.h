@@ -33,8 +33,15 @@ char supportedImageFiles[6][8] = { ".gif", ".png", ".jpg", ".JPG", ".PNG",".GIF"
 #define buttonTxtSize 25
 #define blockTxtSize 20
 
-internal void AllocateBaseMemory(programState& data, memory_arena *arena, int32 memSize)
+static void AllocateBaseMemory(programState& data, memory_arena *arena, uint32 memSize)
 {
+    uint64 totalPhysicalMemory = GetPhysicalMemorySize();
+    if(memSize > totalPhysicalMemory)
+    {
+        //int wrap around
+        memSize = (totalPhysicalMemory / 4);
+    }
+    
     data.memoryBase = Win32VirtualAlloc(memSize);
     
     arena->Size = memSize;
@@ -46,12 +53,12 @@ internal void AllocateBaseMemory(programState& data, memory_arena *arena, int32 
     data.totalUsed = 0;
 }
 
-internal Rectangle SetRect(real32 x,real32 y,real32 width,real32 height)
+static Rectangle SetRect(real32 x,real32 y,real32 width,real32 height)
 {
     return Rectangle {x,y,width,height};
 }
 
-internal programState SetProgramState(int32 screenWidth, int32 screenHeight, int32 FPSTarget, int32 pageSize)
+static programState SetProgramState(int32 screenWidth, int32 screenHeight, int32 FPSTarget, int32 pageSize)
 {
     programState pState  = {};
     pState.screenWidth = screenWidth;
@@ -94,7 +101,7 @@ inline const char* EnumToChar(fileData* fileStruct)
     }
 }
 
-internal void StopAudio(programState* programData)
+static void StopAudio(programState* programData)
 {
     if(programData->globalSound.frameCount > 0)
     {
@@ -102,12 +109,12 @@ internal void StopAudio(programState* programData)
     }
 }
 
-internal real32 GetTextWidth(char* string, real32 fontSize)
+static real32 GetTextWidth(char* string, real32 fontSize)
 {
     return MeasureTextEx(GetFontDefault(),string,fontSize,1).x;
 }
 
-internal void DrawButton(Rectangle buttonRect, const char* text,int32 textSize, Color color)
+static void DrawButton(Rectangle buttonRect, const char* text,int32 textSize, Color color)
 {
     //Draw a rectangle with text in the middle.
     DrawRectangleRec(buttonRect,color);
@@ -117,7 +124,7 @@ internal void DrawButton(Rectangle buttonRect, const char* text,int32 textSize, 
     DrawText(text, (int32)(textPos.x - (textDim.x / 2)), (int32)(textPos.y - (textDim.y / 2)), textSize, WHITE);
 }
 
-internal inline Rectangle SetMemoryBlockPos(Rectangle baseMemoryRect, memory_arena& programMemory, uint32 beforeUsedMemory)
+static inline Rectangle SetMemoryBlockPos(Rectangle baseMemoryRect, memory_arena& programMemory, uint32 beforeUsedMemory)
 {
     Rectangle Result = {};
     
@@ -134,7 +141,7 @@ internal inline Rectangle SetMemoryBlockPos(Rectangle baseMemoryRect, memory_are
     return Result;
 }
 
-internal memoryBlock SetMemoryBlock(memoryBlock block,Rectangle baseMemoryRect,memory_arena programMemory, fileData* filePtr)
+static memoryBlock SetMemoryBlock(memoryBlock block,Rectangle baseMemoryRect,memory_arena programMemory, fileData* filePtr)
 {
     memoryBlock resultBlock = {};
     resultBlock.data = filePtr; 
@@ -152,7 +159,7 @@ internal memoryBlock SetMemoryBlock(memoryBlock block,Rectangle baseMemoryRect,m
     return resultBlock;
 }
 
-internal Sound LoadSoundFromMemory(fileData* data, programState* programData)
+static Sound LoadSoundFromMemory(fileData* data, programState* programData)
 {
     Sound sound = {};
     Wave wave = {};
@@ -177,7 +184,7 @@ internal Sound LoadSoundFromMemory(fileData* data, programState* programData)
     return sound;
 }
 
-internal Texture2D LoadImageFrmMemory(fileData* data, programState* programData)
+static Texture2D LoadImageFrmMemory(fileData* data, programState* programData)
 {
     //NOTE: For the moment cannot load images that have extensions in all caps.
     Texture2D texture = {};
@@ -201,7 +208,7 @@ internal Texture2D LoadImageFrmMemory(fileData* data, programState* programData)
     return (texture);
 }
 
-internal inline bool32 CheckIfExtension(char* extensionArray,int32 arraySize, char* extension)
+static inline bool32 CheckIfExtension(char* extensionArray,int32 arraySize, char* extension)
 {
     for(int i=0; i < arraySize; i++)
     {
@@ -214,7 +221,7 @@ internal inline bool32 CheckIfExtension(char* extensionArray,int32 arraySize, ch
     return false;
 }
 
-internal void ClearTexture(programState* programData)
+static void ClearTexture(programState* programData)
 {
     Texture texture = {};
     UnloadTexture(programData->globalTex);
@@ -223,7 +230,7 @@ internal void ClearTexture(programState* programData)
 
 #if defined(_DEBUG)
 uint32 screenshotNum = 0;
-internal void CheckDebugScreenshot()
+static void CheckDebugScreenshot()
 {
     if (IsKeyPressed(KEY_F1)) 
     {
@@ -234,10 +241,10 @@ internal void CheckDebugScreenshot()
     }
 }
 #else
-internal void CheckDebugScreenshot() {} //stub
+static void CheckDebugScreenshot() {} //stub
 #endif
 
-internal void MemoryBlocksMouseIO(uint32 index, memoryBlock* memoryBlocks, Vector2 mousePos, programState* pState)
+static void MemoryBlocksMouseIO(uint32 index, memoryBlock* memoryBlocks, Vector2 mousePos, programState* pState)
 {
     Rectangle memoryRect = memoryBlocks[index].rect;
     
@@ -292,7 +299,7 @@ internal void MemoryBlocksMouseIO(uint32 index, memoryBlock* memoryBlocks, Vecto
     }
 }
 
-internal fileData* LoadFileIntoMemory(memory_arena& programMemory, char* filename)
+static fileData* LoadFileIntoMemory(memory_arena& programMemory, char* filename)
 {
     fileData* fileResult = {};
     fileInfo fileLoadResult = Win32LoadFile(filename);
@@ -321,8 +328,7 @@ internal fileData* LoadFileIntoMemory(memory_arena& programMemory, char* filenam
         strcpy_s(extensionString, filename + foundChar);
         strcpy_s(fileResult->extension, extensionString);
         
-        //NOTE:  doesn't support UTF-8 atm
-        //TODO: BLECH, what is this?!
+        //no support UTF-8 for the moment
         if(strcmp(extensionString, ".txt") == 0)
         {
             fileResult->type = F_TEXT;
@@ -349,7 +355,7 @@ internal fileData* LoadFileIntoMemory(memory_arena& programMemory, char* filenam
     return(fileResult);
 }
 
-internal void SetStringPos(memoryBlock* memoryBlocks,uint32 blocksAssigned)
+static void SetStringPos(memoryBlock* memoryBlocks,uint32 blocksAssigned)
 {
     Rectangle memoryRect = memoryBlocks[blocksAssigned].rect;
     int32 middleBlock = (int32)(memoryRect.x + (memoryRect.width / 2));
@@ -385,7 +391,7 @@ internal void SetStringPos(memoryBlock* memoryBlocks,uint32 blocksAssigned)
     }
 }
 
-internal char* IntToChar(char* buffer, int32 input,const char* extraString)
+static char* IntToChar(char* buffer, int32 input,const char* extraString)
 {
     uint32 totalDigits = numDigits(input);
     uint32 extraLength = (int32)strlen(extraString);
@@ -393,7 +399,7 @@ internal char* IntToChar(char* buffer, int32 input,const char* extraString)
     return buffer;
 }
 
-internal char* FloatToChar(char* buffer, real32 input, const char* extraString, uint32 precision)
+static char* FloatToChar(char* buffer, real32 input, const char* extraString, uint32 precision)
 {
     // not completly accurate but works for the moment.
     // NOTE: sprintf rounds if over .06 of a number. 4.468 > 4.47 ect doing the x 10 trick will fix this.

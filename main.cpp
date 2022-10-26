@@ -1,10 +1,6 @@
 #include <iostream>
 #include <assert.h>
 
-#define internal static // for funtions
-#define local_persist static // for variables in a local scope
-#define global_variable static // for global variables
-
 typedef uint8_t uint8;
 typedef uint16_t uint16;
 typedef uint32_t uint32;
@@ -134,7 +130,7 @@ int main(void)
             if (GuiButton(allocateRect, "#95#  Alloc Memory"))
             {
                 pState.hasMemAllocated = true;
-                AllocateBaseMemory(pState,&programMemory, (int32)pState.sliderValue);
+                AllocateBaseMemory(pState,&programMemory, (uint32)pState.sliderValue);
             }
             
             pState.sliderValue = GuiSliderBar(sliderBarRect,"Left", "Right",pState.sliderValue,MIN_MEMORY,MAX_MEMORY);
