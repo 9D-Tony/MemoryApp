@@ -46,7 +46,7 @@ typedef float real32;
 #define MapRange(oldMin,oldMax,newMin,newMax,value) (newMin + (value-oldMin)*(newMax-newMin)/(oldMax-oldMin))
 
 #include "Math.h"
-#include "MemoryTestApp.h"
+#include "MemoryApp.h"
 
 int main(void)
 {
