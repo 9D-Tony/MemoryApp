@@ -1,5 +1,6 @@
-# MemoryTestApp
- Test memory allocation application, a visual way of showing memory allocation and how data fits into it.
+# MemoryApp
+
+Memory App is a small memory allocation application, a visual way of showing memory allocation and how data fots within it.
  
  Allows the user to:
 * Allocate virtual memory up to MAX_MEMORY
