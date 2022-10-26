@@ -1,7 +1,10 @@
 # MemoryApp
 
 Memory App is a small memory allocation application, a visual way of showing memory allocation and how data fots within it.
-It was written with the help of Raylib and Raygui, the header files can be found in the include folder and the libraries to link to can be found in lib.
+
+It was written with the help of Raylib and Raygui, the header files can be found in the include folder and the libraries to link to can be found in lib. 
+
+When building and running you will need the raylib dll in the build folder to run the project.
  
  Allows the user to:
 * Allocate virtual memory up to MAX_MEMORY
