@@ -69,7 +69,6 @@ static programState SetProgramState(int32 screenWidth, int32 screenHeight, int32
     pState.pageSize = pageSize;
     pState.sliderValue = (real32)(MAX_MEMORY / 2);
     
-    //Silly magic numbers for now, maybe forever
     pState.baseMemoryRect = {(real32)screenWidth / 2 - 500,(real32)screenHeight / 2 - 100,1000,100};
     
     return pState;
@@ -299,10 +298,71 @@ static void MemoryBlocksMouseIO(uint32 index, memoryBlock* memoryBlocks, Vector2
     }
 }
 
+static fileData* LoadFileIntoMemory_UTF8(memory_arena& programMemory, wchar_t* filename)
+{
+    fileData* fileResult = {};
+    fileInfo fileLoadResult = LoadFile_UTF8(filename);
+    
+    if(fileLoadResult.data == NULL || fileLoadResult.size > (programMemory.Size - programMemory.Used))
+    {
+        printf("File could not fit inside avaliable memory\n");
+        return NULL;
+    }
+    
+    int32 filenameLength = (int32)wcslen(filename);
+    int32 foundChar = (int32)wcscspn(filename, L".");
+    
+    wchar_t extensionString[256]; // most extensions will be < 4
+    
+    // get memory for the file
+    fileResult = pushStruct(&programMemory,fileData);
+    fileResult->size = sizeof(fileData) + fileLoadResult.size;
+    fileResult->baseData = pushArray(&programMemory,fileLoadResult.size,uint8);
+    
+    //works if the filename only has one "." in it,  
+    //TODO: search from the back of the string to get the extension.
+    if(foundChar != filenameLength)
+    {
+        int32 extensionLength = filenameLength - foundChar;
+        
+        char convertedExtension[12];
+        
+        wcscpy_s(extensionString,filename + foundChar);
+        
+        
+        wcstombs(convertedExtension,extensionString,sizeof(convertedExtension) + 1);
+        strcpy_s(fileResult->extension, convertedExtension);
+        
+        if(strcmp(convertedExtension, ".txt") == 0)
+        {
+            fileResult->type = F_TEXT;
+            Copy(fileResult->baseData,fileLoadResult.size,(uint8*)fileLoadResult.data);
+            
+        }else if(CheckIfExtension((char*)supportedAudioFiles,ArrayCount(supportedImageFiles), convertedExtension))
+        {
+            fileResult->type = F_AUDIO;
+            Copy(fileResult->baseData,fileLoadResult.size,(uint8*)fileLoadResult.data);
+            
+        }else if(CheckIfExtension((char*)supportedImageFiles,ArrayCount(supportedImageFiles), convertedExtension))
+        {
+            fileResult->type = F_IMAGE;
+            Copy(fileResult->baseData,fileLoadResult.size,(uint8*)fileLoadResult.data);
+            
+        }else
+        {
+            fileResult->type = F_OTHER;
+            Copy(fileResult->baseData,fileLoadResult.size,(uint8*)fileLoadResult.data);
+        }
+    }
+    
+    Win32VirtualFree(fileLoadResult.data);
+    return(fileResult);
+}
+
 static fileData* LoadFileIntoMemory(memory_arena& programMemory, char* filename)
 {
     fileData* fileResult = {};
-    fileInfo fileLoadResult = Win32LoadFile(filename);
+    fileInfo fileLoadResult = LoadFile(filename);
     
     if(fileLoadResult.data == NULL || fileLoadResult.size > (programMemory.Size - programMemory.Used))
     {
@@ -324,7 +384,6 @@ static fileData* LoadFileIntoMemory(memory_arena& programMemory, char* filename)
     //TODO: search from the back of the string to get the extension.
     if(foundChar != filenameLength)
     {
-        int32 extensionLength = filenameLength - foundChar;
         strcpy_s(extensionString, filename + foundChar);
         strcpy_s(fileResult->extension, extensionString);
         

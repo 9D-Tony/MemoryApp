@@ -44,7 +44,62 @@ static void Win32VirtualFree(void* memoryPtr)
     }
 }
 
-static fileInfo Win32LoadFile(char* filename)
+static fileInfo LoadFile_UTF8(wchar_t* filename)
+{
+    // set console mode, doesn't handle UTF-8 fully, chinese characters are broken.
+    
+    _setmode(_fileno(stdout), _O_WTEXT);
+    
+    fileInfo fileResult = {};
+    void* Result = 0;
+    
+    HANDLE FileHandle = CreateFileW(filename, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, NULL, NULL);
+    if (FileHandle != INVALID_HANDLE_VALUE)
+    {
+        LARGE_INTEGER FileSize;
+        if (GetFileSizeEx(FileHandle, &FileSize))
+        {
+            uint32 FileSize32 = SafeTrucate64(FileSize.QuadPart);
+            fileResult.size = FileSize32;
+            fileResult.data = VirtualAlloc(0, FileSize32, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+            
+            if (fileResult.data)
+            {
+                DWORD BytesRead;
+                if (ReadFile(FileHandle, fileResult.data, FileSize32, &BytesRead, 0))
+                {
+                    // Read into memory.
+                    wprintf(L"%ls sucessfully read!\n", filename);
+                }
+                else
+                {
+                    // free
+                    VirtualFree(fileResult.data, 0, MEM_RELEASE);
+                    Result = 0;
+                    wprintf(L"%ls file read unsuccessful!\n", filename);
+                }
+            }
+        }
+    }
+    
+    if (!fileResult.data)
+    {
+        DWORD Error = GetLastError();
+        if (Error == 0x02)
+        {
+            wprintf(L"%ls file not found!\n", filename);
+        }
+        
+        wprintf(L"%ls file read unsuccessful!\n", filename);
+    }
+    
+    _setmode(_fileno(stdout), _O_TEXT);
+    
+    return(fileResult);
+    
+}
+
+static fileInfo LoadFile(char* filename)
 {
     
     fileInfo fileResult = {};
@@ -92,7 +147,12 @@ static fileInfo Win32LoadFile(char* filename)
     return(fileResult);
 }
 
-static void MoveMem(void* dest, void* source, size_t length)
+static inline void  StringToWideString(char* input,wchar_t* output, int32 wCharSize)
+{
+    MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,input,-1, output, wCharSize);
+}
+
+static inline void MoveMem(void* dest, void* source, size_t length)
 {
     //The first parameter, Destination, must be large enough to hold Length bytes of Source; otherwise, a buffer overrun may occur.
     MoveMemory(dest,source,length);

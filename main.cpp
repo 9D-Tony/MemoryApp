@@ -1,3 +1,5 @@
+#include <io.h>
+#include <fcntl.h>
 #include <iostream>
 #include <assert.h>
 
@@ -72,13 +74,15 @@ int main(void)
     Rectangle clearButtonPos = {0,0,0,0};
     
     uint32 blocksAssigned = 0;
-    memoryBlock memoryBlocks[126] = {};
+    memoryBlock memoryBlocks[256] = {};
     Vector2 mousePos = { 0.0f, 0.0f };
     
     memory_arena programMemory = {};
     Font font = pState.defaultFont;
     fileData* tempFile = {};
     bool32 isMouseHeldDown = false;
+    
+    //setlocale(LC_ALL, "");
     
     while (!WindowShouldClose()) 
     {
@@ -101,13 +105,19 @@ int main(void)
             {
                 for(uint32 i = 0; i < droppedFiles.count; i++)
                 {
-                    // load file into memory here create memory block rectangles
                     int32 beforeMemory = (int32)programMemory.Used;
-                    fileData* filePtr = LoadFileIntoMemory(programMemory,droppedFiles.paths[i]);
+                    
+                    //using wide characters for UTF-8 files support.
+                    wchar_t convertedFilePath[128];
+                    
+                    StringToWideString(droppedFiles.paths[i],convertedFilePath, sizeof(convertedFilePath));
+                    
+                    fileData* filePtr = LoadFileIntoMemory_UTF8(programMemory,convertedFilePath);
                     
                     // if we managed to  load the data, if null then could not load data
                     if(filePtr != NULL)
                     {
+                        
                         memoryBlocks[blocksAssigned].stringWidth = GetTextWidth(memoryBlocks[blocksAssigned].string,blockTxtSize);
                         memoryBlocks[blocksAssigned] = SetMemoryBlock(memoryBlocks[blocksAssigned],baseMemoryRect,programMemory,filePtr);
                         
@@ -127,7 +137,7 @@ int main(void)
         //Maybe a layed / screen system for drawing and logic
         if(!pState.hasMemAllocated)
         {
-            if (GuiButton(allocateRect, "#95#  Alloc Memory"))
+            if (GuiButton(allocateRect, "#95# Alloc Memory"))
             {
                 pState.hasMemAllocated = true;
                 AllocateBaseMemory(pState,&programMemory, (uint32)pState.sliderValue);
@@ -142,11 +152,13 @@ int main(void)
             {
                 sliderText = IntToChar(textBuffer,ToKilobytes((int32)pState.sliderValue), "Kilobytes");
                 sliderTextWidth = (int32)GetTextWidth(sliderText, (real32)titleSize);
+                
                 DrawText(sliderText,int32(sliderBarRect.x + (sliderBarRect.width / 2)  - (sliderTextWidth / 2)), int32(sliderBarRect.y - 80.0f), titleSize, WHITE);
             }else
             {
                 sliderText = IntToChar(textBuffer,ToMegabytes((int32)pState.sliderValue), "Megabytes");
                 sliderTextWidth = (int32)GetTextWidth(sliderText, (real32)titleSize);
+                
                 DrawText(sliderText,int32(sliderBarRect.x + (sliderBarRect.width / 2) - (sliderTextWidth / 2)), int32(sliderBarRect.y - 80.0f), titleSize, WHITE);
             }
             
@@ -154,7 +166,6 @@ int main(void)
         {
             DrawRectangleRec(baseMemoryRect,BLUE);
             
-            //NOTE: cache text here
             real32 totalMemoryLeft = (real32)ToMegabytes((real32)programMemory.Size - (real32)programMemory.Used);
             int32 totalKiloytesLeft = (int32)ToKilobytes(programMemory.Size - programMemory.Used);
             
@@ -172,7 +183,7 @@ int main(void)
             
             DrawText(totalMemoryText,int32(GetRectCenter(baseMemoryRect).x - (textWidth / 2)),int32(baseMemoryRect.y - baseMemoryRect.height * 1.5f),titleSize,WHITE);
             
-            DrawText("Memory Left",int32(GetRectCenter(baseMemoryRect).x - (memLeftTxtWidth / 2)),int32(baseMemoryRect.y - baseMemoryRect.height * 1.85f),titleSize,WHITE);
+            DrawText("Memory Left",int32(GetRectCenter(baseMemoryRect).x - memLeftTxtWidth / 2),int32(baseMemoryRect.y - baseMemoryRect.height * 1.85f),titleSize,WHITE);
             
             if(programMemory.Used > 0)
             {
@@ -253,8 +264,7 @@ int main(void)
                         
                         memoryBlock nextBlock = memoryBlocks[pState.selectedIndex+1];
                         
-                        //Move mem works now but need to copy memoryBlocks data over
-                        MoveMem(selectedBlockData ,memoryBlocks[pState.selectedIndex+1].data,totalMoveSize); // this is right now, pretty sure
+                        MoveMem(selectedBlockData ,memoryBlocks[pState.selectedIndex+1].data,totalMoveSize);
                         
                         for(uint32 b = pState.selectedIndex; b < blocksAssigned; b++)
                         {
@@ -264,7 +274,6 @@ int main(void)
                                 memoryBlocks[b] = {};
                                 memoryBlocks[b] = blockAfter;
                                 
-                                //TODO: make it work when the first block is deleted.
                                 uint8* memAddress;
                                 
                                 if(b != 0)
@@ -294,23 +303,23 @@ int main(void)
                         }
                         
                         blocksAssigned--;
-                        
                     }
                     
                     pState.selectedBlock = NULL;
                 }
             }
             
-            //mouse input for memoryBlocks
             for(uint32 i = 0; i < blocksAssigned; i++)
             {
+                //mouse input for memoryBlocks
                 MemoryBlocksMouseIO(i, memoryBlocks,mousePos, &pState);
+                
                 Rectangle memoryRect = memoryBlocks[i].rect;
                 
                 // Draw each memory block
                 DrawRectangleRec(memoryRect,memoryBlocks[i].color);
                 
-                real32 middleBlock = memoryRect.x + (memoryRect.width / 2);
+                real32 middleBlockX = memoryRect.x + (memoryRect.width / 2);
                 Vector2 memStringPos = memoryBlocks[i].stringPos;
                 
                 if(memoryBlocks[i].stringWidth < memoryRect.width)
@@ -320,7 +329,7 @@ int main(void)
                 }else
                 {
                     // check if the memory block string is colliding and move it up if it is.
-                    Rectangle memoryTextLine = SetRect(middleBlock,memoryRect.y - 20, 2,20);
+                    Rectangle memoryTextLine = SetRect(middleBlockX,memoryRect.y - 20, 2,20);
                     
                     DrawRectangleRec(memoryTextLine,WHITE);
                     DrawTextEx(font,memoryBlocks[i].string,memStringPos,blockTxtSize,1,WHITE);
