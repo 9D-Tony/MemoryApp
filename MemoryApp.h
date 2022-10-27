@@ -176,7 +176,6 @@ static Sound LoadSoundFromMemory(fileData* data, programState* programData)
         return sound;
     }
     
-    //loading sound causes it's own allocation in raylib.dll
     sound = LoadSoundFromWave(wave);
     UnloadWave(wave);
     
@@ -306,13 +305,14 @@ static fileData* LoadFileIntoMemory_UTF8(memory_arena& programMemory, wchar_t* f
     if(fileLoadResult.data == NULL || fileLoadResult.size > (programMemory.Size - programMemory.Used))
     {
         printf("File could not fit inside avaliable memory\n");
+        Win32VirtualFree(fileLoadResult.data);
         return NULL;
     }
     
     int32 filenameLength = (int32)wcslen(filename);
     int32 foundChar = (int32)wcscspn(filename, L".");
     
-    wchar_t extensionString[256]; // most extensions will be < 4
+    wchar_t extensionString[64]; // most extensions will be < 4
     
     // get memory for the file
     fileResult = pushStruct(&programMemory,fileData);
@@ -356,6 +356,7 @@ static fileData* LoadFileIntoMemory_UTF8(memory_arena& programMemory, wchar_t* f
     }
     
     Win32VirtualFree(fileLoadResult.data);
+    
     return(fileResult);
 }
 
@@ -367,6 +368,7 @@ static fileData* LoadFileIntoMemory(memory_arena& programMemory, char* filename)
     if(fileLoadResult.data == NULL || fileLoadResult.size > (programMemory.Size - programMemory.Used))
     {
         printf("File could not fit inside avaliable memory\n");
+        Win32VirtualFree(fileLoadResult.data);
         return NULL;
     }
     

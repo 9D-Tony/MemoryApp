@@ -41,7 +41,9 @@ static void Win32VirtualFree(void* memoryPtr)
     if(memoryPtr != NULL)
     {
         VirtualFree(memoryPtr, 0, MEM_RELEASE);
+        return;
     }
+    printf("could not free memory!");
 }
 
 static fileInfo LoadFile_UTF8(wchar_t* filename)
@@ -76,6 +78,7 @@ static fileInfo LoadFile_UTF8(wchar_t* filename)
                     // free
                     VirtualFree(fileResult.data, 0, MEM_RELEASE);
                     Result = 0;
+                    
                     wprintf(L"%ls file read unsuccessful!\n", filename);
                 }
             }
@@ -94,6 +97,8 @@ static fileInfo LoadFile_UTF8(wchar_t* filename)
     }
     
     _setmode(_fileno(stdout), _O_TEXT);
+    
+    CloseHandle(FileHandle);
     
     return(fileResult);
     
@@ -144,6 +149,9 @@ static fileInfo LoadFile(char* filename)
         
         printf("%s file read unsuccessful!\n", filename);
     }
+    
+    CloseHandle(FileHandle);
+    
     return(fileResult);
 }
 

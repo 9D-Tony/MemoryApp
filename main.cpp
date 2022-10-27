@@ -103,12 +103,13 @@ int main(void)
             
             if(droppedFiles.paths != NULL)
             {
+                wchar_t convertedFilePath[128];
+                
                 for(uint32 i = 0; i < droppedFiles.count; i++)
                 {
                     int32 beforeMemory = (int32)programMemory.Used;
                     
                     //using wide characters for UTF-8 files support.
-                    wchar_t convertedFilePath[128];
                     
                     StringToWideString(droppedFiles.paths[i],convertedFilePath, sizeof(convertedFilePath));
                     
