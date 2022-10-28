@@ -35,13 +35,6 @@ char supportedImageFiles[6][8] = { ".gif", ".png", ".jpg", ".JPG", ".PNG",".GIF"
 
 static void AllocateBaseMemory(programState& data, memory_arena *arena, uint32 memSize)
 {
-    uint64 totalPhysicalMemory = GetPhysicalMemorySize();
-    if(memSize > totalPhysicalMemory)
-    {
-        //int wrap around
-        memSize = (totalPhysicalMemory / 4);
-    }
-    
     data.memoryBase = Win32VirtualAlloc(memSize);
     
     arena->Size = memSize;
@@ -242,47 +235,44 @@ static void CheckDebugScreenshot()
 static void CheckDebugScreenshot() {} //stub
 #endif
 
+static void SetBlockInfo(programState* pState, memoryBlock* memoryBlocks, int32 nextIndex)
+{
+    
+    if(pState->selectedBlock != NULL)
+    {
+        pState->selectedBlock->color = pState->blockLastColor; 
+    }
+    
+    pState->selectedIndex = nextIndex;
+    
+    pState->selectedBlock = &memoryBlocks[pState->selectedIndex];
+    pState->blockLastColor = memoryBlocks[pState->selectedIndex].color;
+    memoryBlocks[pState->selectedIndex].color = GRAY;
+    
+    fileData* memoryData = memoryBlocks[pState->selectedIndex].data;
+    
+    // Actions for each filetype
+    if(CheckIfExtension((char*)supportedImageFiles,ArrayCount(supportedImageFiles), memoryData->extension))
+    {
+        StopAudio(pState);
+        pState->globalTex = LoadImageFrmMemory(memoryData,pState); 
+    }
+    
+    if(CheckIfExtension((char*)supportedAudioFiles,ArrayCount(supportedAudioFiles), memoryData->extension))
+    {
+        ClearTexture(pState);
+        StopAudio(pState);
+    }
+}
+
 static void MemoryBlocksMouseIO(uint32 index, memoryBlock* memoryBlocks, Vector2 mousePos, programState* pState)
 {
     Rectangle memoryRect = memoryBlocks[index].rect;
     
     // colliding with a memory rect
-    if (CheckCollisionPointRec(mousePos, memoryRect) && memoryRect.width > 5)
+    if ((CheckCollisionPointRec(mousePos, memoryRect) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && memoryRect.width > 5))
     {
-        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
-        {
-            // reset last block to original color
-            if(pState->selectedBlock != NULL)
-            {
-                pState->selectedBlock->color = pState->blockLastColor; 
-            }
-            
-            //+1 here so delete block button would work properly, twas a hack
-            pState->selectedIndex = index;
-            
-            pState->selectedBlock = &memoryBlocks[index]; 
-            pState->blockLastColor = memoryBlocks[index].color;
-            
-            memoryBlocks[index].color = GRAY;
-            
-            // get file entension and load image/audio
-            fileData* memoryData = memoryBlocks[index].data;
-            
-            // Actions for each filetype
-            if(CheckIfExtension((char*)supportedImageFiles,ArrayCount(supportedImageFiles), memoryData->extension))
-            {
-                // stop audio if clicking on image
-                StopAudio(pState);
-                pState->globalTex = LoadImageFrmMemory(memoryData,pState); 
-            }
-            
-            if(CheckIfExtension((char*)supportedAudioFiles,ArrayCount(supportedAudioFiles), memoryData->extension))
-            {
-                ClearTexture(pState);
-                StopAudio(pState);
-            }
-        }
-        
+        SetBlockInfo(pState, memoryBlocks,index);
     }
     
     if(pState->selectedBlock != NULL && pState->selectedBlock->data != NULL && pState->selectedBlock->data->type == F_AUDIO)

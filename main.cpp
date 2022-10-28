@@ -39,6 +39,7 @@ typedef float real32;
 
 #define Kilobytes(Value) ((Value) * 1024)
 #define Megabytes(Value) (Kilobytes(Value) * 1024)
+#define Gigabytes(Value) (Megabytes(Value) * 1024)
 
 #define ArrayCount(a) (sizeof(a) / sizeof(*a))
 #define MapRange(oldMin,oldMax,newMin,newMax,value) (newMin + (value-oldMin)*(newMax-newMin)/(oldMax-oldMin))
@@ -228,8 +229,27 @@ int main(void)
             
             if(pState.selectedBlock != NULL)
             {
+                
                 Vector2 baseMemCenter = GetRectCenter(baseMemoryRect);
                 Rectangle endMemRect = SetRect(baseMemoryRect.x + baseMemoryRect.width - 150.0f,baseMemCenter.y - baseMemoryRect.height ,150,25);
+                
+                if(IsKeyPressed(KEY_RIGHT) && pState.selectedBlock != NULL)
+                {
+                    if(pState.selectedIndex != blocksAssigned - 1)
+                    {
+                        int32 nextBlock =  pState.selectedIndex + 1;
+                        SetBlockInfo(&pState, memoryBlocks,nextBlock);
+                    }
+                }
+                
+                if(IsKeyPressed(KEY_LEFT) && pState.selectedBlock != NULL)
+                {
+                    if(pState.selectedIndex != 0)
+                    {
+                        int32 nextBlock =  pState.selectedIndex - 1;
+                        SetBlockInfo(&pState, memoryBlocks,nextBlock);
+                    }
+                }
                 
                 if(GuiButton(endMemRect, "#113# Delete Block") || IsKeyPressed(KEY_DELETE))
                 {
