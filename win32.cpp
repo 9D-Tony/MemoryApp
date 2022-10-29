@@ -17,6 +17,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 */
 
+
 #ifndef WIN32_PLATFORM
 #define WIN32_PLATFORM
 
@@ -73,7 +74,7 @@ static fileInfo LoadFile_UTF8(wchar_t* filename)
     
     fileInfo fileResult = {};
     void* Result = 0;
-    
+
     HANDLE FileHandle = CreateFileW(filename, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, NULL, NULL);
     if (FileHandle != INVALID_HANDLE_VALUE)
     {

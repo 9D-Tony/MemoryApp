@@ -102,8 +102,6 @@ int main(void)
     fileData* tempFile = {};
     bool32 isMouseHeldDown = false;
     
-    //setlocale(LC_ALL, "");
-    
     while (!WindowShouldClose()) 
     {
         (!IsWindowFocused()) ? SetTargetFPS(30) : SetTargetFPS(pState.FPSTarget);
@@ -164,7 +162,13 @@ int main(void)
                 AllocateBaseMemory(pState,&programMemory, (uint32)pState.sliderValue);
             }
             
-            pState.sliderValue = GuiSliderBar(sliderBarRect,"Left", "Right",pState.sliderValue,MIN_MEMORY,MAX_MEMORY);
+            char maxMemString[18];
+            char minMemString[18];
+            
+            IntToChar(maxMemString,ToMegabytes((int32)MAX_MEMORY), " MB");
+            IntToChar(minMemString,ToKilobytes((int32)MIN_MEMORY), " KB ");
+            
+            pState.sliderValue = GuiSliderBar(sliderBarRect,minMemString, maxMemString,pState.sliderValue,MIN_MEMORY,MAX_MEMORY);
             
             char* sliderText = 0;
             int32 sliderTextWidth = 0;
