@@ -106,7 +106,7 @@ inline const char* EnumToChar(fileData* fileStruct)
         return "Other";
         break;
         
-        default: 
+        default:
         return "Other";
         break;
     }
@@ -129,9 +129,9 @@ static void DrawButton(Rectangle buttonRect, const char* text,int32 textSize, Co
 {
     //Draw a rectangle with text in the middle.
     DrawRectangleRec(buttonRect,color);
-    Vector2 textDim =  MeasureTextEx(GetFontDefault() ,text, (real32)textSize, 1); 
+    Vector2 textDim =  MeasureTextEx(GetFontDefault() ,text, (real32)textSize, 1);
     
-    Vector2 textPos = GetRectCenter(buttonRect); 
+    Vector2 textPos = GetRectCenter(buttonRect);
     DrawText(text, (int32)(textPos.x - (textDim.x / 2)), (int32)(textPos.y - (textDim.y / 2)), textSize, WHITE);
 }
 
@@ -147,7 +147,7 @@ static inline Rectangle SetMemoryBlockPos(Rectangle baseMemoryRect, memory_arena
     Result.y = baseMemoryRect.y + (baseMemoryRect.height / 16);
     Result.x = beforeUsedMemory * newRange / oldRange + baseMemoryRect.x;
     
-    Result.width = ((real32)programMemory.Used * newRange / oldRange + baseMemoryRect.x) - Result.x; 
+    Result.width = ((real32)programMemory.Used * newRange / oldRange + baseMemoryRect.x) - Result.x;
     
     return Result;
 }
@@ -155,7 +155,7 @@ static inline Rectangle SetMemoryBlockPos(Rectangle baseMemoryRect, memory_arena
 static memoryBlock SetMemoryBlock(memoryBlock block,Rectangle baseMemoryRect,memory_arena programMemory, fileData* filePtr)
 {
     memoryBlock resultBlock = {};
-    resultBlock.data = filePtr; 
+    resultBlock.data = filePtr;
     
     int32 beforeMemory = (int32)programMemory.Used - filePtr->size;
     resultBlock.rect = SetMemoryBlockPos(baseMemoryRect,programMemory, beforeMemory);
@@ -205,6 +205,7 @@ static Texture2D LoadImageFrmMemory(fileData* data, programState* programData)
     }
     
     Image inputImage = LoadImageFromMemory(data->extension, data->baseData, data->size - sizeof(fileData));
+    
     texture = LoadTextureFromImage(inputImage);
     
     if(texture.id == NULL)
@@ -220,6 +221,11 @@ static Texture2D LoadImageFrmMemory(fileData* data, programState* programData)
 
 static inline bool32 CheckIfExtension(char* extensionArray,int32 arraySize, char* extension)
 {
+    if(strlen(extension) < 1)
+    {
+        return false;
+    }
+    
     for(int i=0; i < arraySize; i++)
     {
         if(strcmp(extensionArray + (i * 8), extension) == 0)
@@ -239,10 +245,11 @@ static void ClearTexture(programState* programData)
 }
 
 #if defined(_DEBUG)
+
 uint32 screenshotNum = 0;
 static void CheckDebugScreenshot()
 {
-    if (IsKeyPressed(KEY_F1)) 
+    if (IsKeyPressed(KEY_F1))
     {
         char numBuffer[40];
         sprintf(numBuffer, "DebugScreenshots/Debug_%d.png",screenshotNum);
@@ -250,6 +257,7 @@ static void CheckDebugScreenshot()
         screenshotNum++;
     }
 }
+
 #else
 static void CheckDebugScreenshot() {} //stub
 #endif
@@ -259,7 +267,7 @@ static void SetBlockInfo(programState* pState, memoryBlock* memoryBlocks, int32 
     
     if(pState->selectedBlock != NULL)
     {
-        pState->selectedBlock->color = pState->blockLastColor; 
+        pState->selectedBlock->color = pState->blockLastColor;
     }
     
     pState->selectedIndex = nextIndex;
@@ -274,7 +282,7 @@ static void SetBlockInfo(programState* pState, memoryBlock* memoryBlocks, int32 
     if(CheckIfExtension((char*)supportedImageFiles,ArrayCount(supportedImageFiles), memoryData->extension))
     {
         StopAudio(pState);
-        pState->globalTex = LoadImageFrmMemory(memoryData,pState); 
+        pState->globalTex = LoadImageFrmMemory(memoryData,pState);
     }
     
     if(CheckIfExtension((char*)supportedAudioFiles,ArrayCount(supportedAudioFiles), memoryData->extension))
@@ -296,7 +304,7 @@ static void MemoryBlocksMouseIO(uint32 index, memoryBlock* memoryBlocks, Vector2
     
     if(pState->selectedBlock != NULL && pState->selectedBlock->data != NULL && pState->selectedBlock->data->type == F_AUDIO)
     {
-        Vector2 baseMemoryRect = GetRectCenter(pState->baseMemoryRect); 
+        Vector2 baseMemoryRect = GetRectCenter(pState->baseMemoryRect);
         Rectangle playRect = {baseMemoryRect.x - 40,baseMemoryRect.y + 60,80,40};
         if(GuiButton(playRect, "#131# Play"))
         {
@@ -319,50 +327,61 @@ static fileData* LoadFileIntoMemory_UTF8(memory_arena& programMemory, wchar_t* f
     }
     
     int32 filenameLength = (int32)wcslen(filename);
+    
     int32 foundChar = (int32)wcscspn(filename, L".");
     
     wchar_t extensionString[64]; // most extensions will be < 4
+    //works if the filename only has one "." in it,
+    
+    //TODO: search from the back of the string to get the extension, e.g If the user ever accidentally names a file .jpg.png
+    //TODO: probably need to replace wchar_t with custome UTF-8 implimentation
+    
+    int32 extensionLength = filenameLength - foundChar;
+    
+    char convertedExtension[40];
+    
+    wcscpy_s(extensionString,filename + foundChar);
+    
+    wcstombs(convertedExtension,extensionString,sizeof(convertedExtension) + 1);
+    
+    //fails here as converted is way over
+    if(strlen(convertedExtension) > 12)
+    {
+        //Don't add to the memory file extension too long
+        printf("File extension tool long at %d chracters", extensionLength);
+        Win32VirtualFree(fileLoadResult.data);
+        return NULL;
+    }
     
     // get memory for the file
     fileResult = pushStruct(&programMemory,fileData);
     fileResult->size = sizeof(fileData) + fileLoadResult.size;
     fileResult->baseData = pushArray(&programMemory,fileLoadResult.size,uint8);
     
-    //works if the filename only has one "." in it,  
-    //TODO: search from the back of the string to get the extension.
-    if(foundChar != filenameLength)
+    
+    strcpy_s(fileResult->extension, convertedExtension);
+    
+    if(strcmp(convertedExtension, ".txt") == 0)
     {
-        int32 extensionLength = filenameLength - foundChar;
+        fileResult->type = F_TEXT;
+        Copy(fileResult->baseData,fileLoadResult.size,(uint8*)fileLoadResult.data);
         
-        char convertedExtension[12];
+    }else if(CheckIfExtension((char*)supportedAudioFiles,ArrayCount(supportedImageFiles), convertedExtension))
+    {
+        fileResult->type = F_AUDIO;
+        Copy(fileResult->baseData,fileLoadResult.size,(uint8*)fileLoadResult.data);
         
-        wcscpy_s(extensionString,filename + foundChar);
+    }else if(CheckIfExtension((char*)supportedImageFiles,ArrayCount(supportedImageFiles), convertedExtension))
+    {
+        fileResult->type = F_IMAGE;
+        Copy(fileResult->baseData,fileLoadResult.size,(uint8*)fileLoadResult.data);
         
-        
-        wcstombs(convertedExtension,extensionString,sizeof(convertedExtension) + 1);
-        strcpy_s(fileResult->extension, convertedExtension);
-        
-        if(strcmp(convertedExtension, ".txt") == 0)
-        {
-            fileResult->type = F_TEXT;
-            Copy(fileResult->baseData,fileLoadResult.size,(uint8*)fileLoadResult.data);
-            
-        }else if(CheckIfExtension((char*)supportedAudioFiles,ArrayCount(supportedImageFiles), convertedExtension))
-        {
-            fileResult->type = F_AUDIO;
-            Copy(fileResult->baseData,fileLoadResult.size,(uint8*)fileLoadResult.data);
-            
-        }else if(CheckIfExtension((char*)supportedImageFiles,ArrayCount(supportedImageFiles), convertedExtension))
-        {
-            fileResult->type = F_IMAGE;
-            Copy(fileResult->baseData,fileLoadResult.size,(uint8*)fileLoadResult.data);
-            
-        }else
-        {
-            fileResult->type = F_OTHER;
-            Copy(fileResult->baseData,fileLoadResult.size,(uint8*)fileLoadResult.data);
-        }
+    }else
+    {
+        fileResult->type = F_OTHER;
+        Copy(fileResult->baseData,fileLoadResult.size,(uint8*)fileLoadResult.data);
     }
+    
     
     Win32VirtualFree(fileLoadResult.data);
     
@@ -391,7 +410,7 @@ static fileData* LoadFileIntoMemory(memory_arena& programMemory, char* filename)
     fileResult->size = sizeof(fileData) + fileLoadResult.size;
     fileResult->baseData = pushArray(&programMemory,fileLoadResult.size,uint8);
     
-    //works if the filename only has one "." in it,  
+    //works if the filename only has one "." in it,
     //TODO: search from the back of the string to get the extension.
     if(foundChar != filenameLength)
     {
@@ -438,7 +457,7 @@ static void SetStringPos(memoryBlock* memoryBlocks,uint32 blocksAssigned)
     else
     {
         real32 textOffset = 40.0;
-        real32 memoryTextY = memoryRect.y - textOffset; 
+        real32 memoryTextY = memoryRect.y - textOffset;
         //render a rect here pointing to the middle of the block
         
         memoryBlocks[blocksAssigned].stringPos = SetPos(middleBlock - (memoryBlocks[blocksAssigned].stringWidth / 2) , memoryTextY);
@@ -449,10 +468,10 @@ static void SetStringPos(memoryBlock* memoryBlocks,uint32 blocksAssigned)
             memoryBlock lastStringBlock = memoryBlocks[blocksAssigned - 1];
             real32 YDistance = curStringBlock.stringPos.y -  lastStringBlock.stringPos.y;
             
-            //TODO: collides with text rendered in middle of memory block 
+            //TODO: collides with text rendered in middle of memory block
             if(lastStringBlock.stringPos.x  > curStringBlock.stringPos.x ||
                lastStringBlock.stringPos.x + lastStringBlock.stringWidth > curStringBlock.stringPos.x &&
-               lastStringBlock.stringPos.x + lastStringBlock.stringWidth < 
+               lastStringBlock.stringPos.x + lastStringBlock.stringWidth <
                curStringBlock.stringPos.x + curStringBlock.stringWidth)
             {
                 memoryBlocks[blocksAssigned].stringPos = SetPos(middleBlock - (curStringBlock.stringWidth / 2) ,  (lastStringBlock.rect.y - textOffset - 24));

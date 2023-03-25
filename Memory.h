@@ -27,7 +27,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ToMegabytes(Value) (ToKilobytes(Value) / 1024)
 
 
-enum FILETYPE 
+enum FILETYPE
 {
     F_AUDIO,
     F_IMAGE,
@@ -39,7 +39,7 @@ struct fileData
 {
     // files that are not images / audio
     int32 size;
-    char extension[12];
+    char extension[40];
     FILETYPE type;
     uint8* baseData;
 };
